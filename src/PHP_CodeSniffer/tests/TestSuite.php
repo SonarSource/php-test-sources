@@ -2,57 +2,34 @@
 /**
  * A PHP_CodeSniffer specific test suite for PHPUnit.
  *
- * PHP version 5
- *
- * @category  PHP
- * @package   PHP_CodeSniffer
  * @author    Greg Sherwood <gsherwood@squiz.net>
- * @author    Marc McIntyre <mmcintyre@squiz.net>
- * @copyright 2006-2014 Squiz Pty Ltd (ABN 77 084 670 600)
+ * @copyright 2006-2015 Squiz Pty Ltd (ABN 77 084 670 600)
  * @license   https://github.com/squizlabs/PHP_CodeSniffer/blob/master/licence.txt BSD Licence
- * @link      http://pear.php.net/package/PHP_CodeSniffer
  */
 
-if (class_exists('PHPUnit_Framework_TestSuite', false) === false) {
-    require_once 'PHPUnit/Framework/TestSuite.php';
-}
+namespace PHP_CodeSniffer\Tests;
 
-/**
- * A PHP_CodeSniffer specific test suite for PHPUnit.
- *
- * Unregisters the PHP_CodeSniffer autoload function after the run.
- *
- * @category  PHP
- * @package   PHP_CodeSniffer
- * @author    Greg Sherwood <gsherwood@squiz.net>
- * @author    Marc McIntyre <mmcintyre@squiz.net>
- * @copyright 2006-2014 Squiz Pty Ltd (ABN 77 084 670 600)
- * @license   https://github.com/squizlabs/PHP_CodeSniffer/blob/master/licence.txt BSD Licence
- * @version   Release: @package_version@
- * @link      http://pear.php.net/package/PHP_CodeSniffer
- */
-class PHP_CodeSniffer_TestSuite extends PHPUnit_Framework_TestSuite
+use PHPUnit\Framework\TestSuite as PHPUnit_TestSuite;
+use PHPUnit\Framework\TestResult;
+
+class TestSuite extends PHPUnit_TestSuite
 {
 
 
     /**
      * Runs the tests and collects their result in a TestResult.
      *
-     * @param PHPUnit_Framework_TestResult $result A test result.
-     * @param mixed                        $filter The filter passed to each test.
+     * @param \PHPUnit\Framework\TestResult $result A test result.
      *
-     * @return PHPUnit_Framework_TestResult
+     * @return \PHPUnit\Framework\TestResult
      */
-    public function run(PHPUnit_Framework_TestResult $result=null, $filter=false)
+    public function run(TestResult $result=null)
     {
-        spl_autoload_register(array('PHP_CodeSniffer', 'autoload'));
-        $result = parent::run($result, $filter);
-        spl_autoload_unregister(array('PHP_CodeSniffer', 'autoload'));
+        $result = parent::run($result);
+        printPHPCodeSnifferTestOutput();
         return $result;
 
     }//end run()
 
 
 }//end class
-
-?>

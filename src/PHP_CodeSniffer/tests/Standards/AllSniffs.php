@@ -2,39 +2,19 @@
 /**
  * A test class for testing all sniffs for installed standards.
  *
- * PHP version 5
- *
- * @category  PHP
- * @package   PHP_CodeSniffer
  * @author    Greg Sherwood <gsherwood@squiz.net>
- * @author    Marc McIntyre <mmcintyre@squiz.net>
- * @copyright 2006-2014 Squiz Pty Ltd (ABN 77 084 670 600)
+ * @copyright 2006-2015 Squiz Pty Ltd (ABN 77 084 670 600)
  * @license   https://github.com/squizlabs/PHP_CodeSniffer/blob/master/licence.txt BSD Licence
- * @link      http://pear.php.net/package/PHP_CodeSniffer
  */
 
-// Require this here so that the unit tests don't have to try and find the
-// abstract class once it is installed into the PEAR tests directory.
-require_once dirname(__FILE__).'/AbstractSniffUnitTest.php';
+namespace PHP_CodeSniffer\Tests\Standards;
 
-/**
- * A test class for testing all sniffs for installed standards.
- *
- * Usage: phpunit AllSniffs.php
- *
- * This test class loads all unit tests for all installed standards into a
- * single test suite and runs them. Errors are reported on the command line.
- *
- * @category  PHP
- * @package   PHP_CodeSniffer
- * @author    Greg Sherwood <gsherwood@squiz.net>
- * @author    Marc McIntyre <mmcintyre@squiz.net>
- * @copyright 2006-2014 Squiz Pty Ltd (ABN 77 084 670 600)
- * @license   https://github.com/squizlabs/PHP_CodeSniffer/blob/master/licence.txt BSD Licence
- * @version   Release: @package_version@
- * @link      http://pear.php.net/package/PHP_CodeSniffer
- */
-class PHP_CodeSniffer_Standards_AllSniffs
+use PHP_CodeSniffer\Util\Standards;
+use PHP_CodeSniffer\Autoload;
+use PHPUnit\TextUI\TestRunner;
+use PHPUnit\Framework\TestSuite;
+
+class AllSniffs
 {
 
 
@@ -45,7 +25,7 @@ class PHP_CodeSniffer_Standards_AllSniffs
      */
     public static function main()
     {
-        PHPUnit_TextUI_TestRunner::run(self::suite());
+        TestRunner::run(self::suite());
 
     }//end main()
 
@@ -56,40 +36,50 @@ class PHP_CodeSniffer_Standards_AllSniffs
      * Sniff unit tests are found by recursing through the 'Tests' directory
      * of each installed coding standard.
      *
-     * @return PHPUnit_Framework_TestSuite
+     * @return \PHPUnit\Framework\TestSuite
      */
     public static function suite()
     {
-        $suite = new PHPUnit_Framework_TestSuite('PHP CodeSniffer Standards');
+        $GLOBALS['PHP_CODESNIFFER_SNIFF_CODES']   = [];
+        $GLOBALS['PHP_CODESNIFFER_FIXABLE_CODES'] = [];
 
-        $isInstalled = !is_file(dirname(__FILE__).'/../../CodeSniffer.php');
+        $suite = new TestSuite('PHP CodeSniffer Standards');
 
-        if ($isInstalled === false) {
-            // We have not been installed.
-            $standardsDir = realpath(dirname(__FILE__).'/../../CodeSniffer/Standards');
+        $isInstalled = !is_file(__DIR__.'/../../autoload.php');
+
+        // Optionally allow for ignoring the tests for one or more standards.
+        $ignoreTestsForStandards = getenv('PHPCS_IGNORE_TESTS');
+        if ($ignoreTestsForStandards === false) {
+            $ignoreTestsForStandards = [];
         } else {
-            $standardsDir = '';
+            $ignoreTestsForStandards = explode(',', $ignoreTestsForStandards);
         }
 
-        $standards = PHP_CodeSniffer::getInstalledStandards(true, $standardsDir);
+        $installedStandards = self::getInstalledStandardDetails();
 
-        foreach ($standards as $standard) {
-            if ($isInstalled === false) {
-                $standardDir = $standardsDir.DIRECTORY_SEPARATOR.$standard.DIRECTORY_SEPARATOR.'Tests'.DIRECTORY_SEPARATOR;
+        foreach ($installedStandards as $standard => $details) {
+            Autoload::addSearchPath($details['path'], $details['namespace']);
+
+            // If the test is running PEAR installed, the built-in standards
+            // are split into different directories; one for the sniffs and
+            // a different file system location for tests.
+            if ($isInstalled === true && is_dir(dirname($details['path']).DIRECTORY_SEPARATOR.'Generic') === true) {
+                $testPath = realpath(__DIR__.'/../../src/Standards/'.$standard);
             } else {
-                $standardDir = dirname(__FILE__).DIRECTORY_SEPARATOR.$standard.DIRECTORY_SEPARATOR.'Tests'.DIRECTORY_SEPARATOR;
+                $testPath = $details['path'];
             }
 
-            if (is_dir($standardDir) === false) {
+            if (in_array($standard, $ignoreTestsForStandards) === true) {
+                continue;
+            }
+
+            $testsDir = $testPath.DIRECTORY_SEPARATOR.'Tests'.DIRECTORY_SEPARATOR;
+            if (is_dir($testsDir) === false) {
                 // No tests for this standard.
                 continue;
             }
 
-            // Locate the actual directory that contains the standard's tests.
-            // This is individual to each standard as they could be symlinked in.
-            $baseDir = dirname(dirname($standardDir));
-
-            $di = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($standardDir));
+            $di = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($testsDir));
 
             foreach ($di as $file) {
                 // Skip hidden files.
@@ -104,15 +94,11 @@ class PHP_CodeSniffer_Standards_AllSniffs
                     continue;
                 }
 
-                $filePath  = $file->getPathname();
-                $className = str_replace($baseDir.DIRECTORY_SEPARATOR, '', $filePath);
-                $className = substr($className, 0, -4);
-                $className = str_replace(DIRECTORY_SEPARATOR, '_', $className);
-
-                include_once $filePath;
-                $class = new $className('getErrorList');
-                $suite->addTest($class);
-            }//end foreach
+                $className = Autoload::loadFile($file->getPathname());
+                $GLOBALS['PHP_CODESNIFFER_STANDARD_DIRS'][$className] = $details['path'];
+                $GLOBALS['PHP_CODESNIFFER_TEST_DIRS'][$className]     = $testsDir;
+                $suite->addTestSuite($className);
+            }
         }//end foreach
 
         return $suite;
@@ -120,6 +106,17 @@ class PHP_CodeSniffer_Standards_AllSniffs
     }//end suite()
 
 
-}//end class
+    /**
+     * Get the details of all coding standards installed.
+     *
+     * @return array
+     * @see    Standards::getInstalledStandardDetails()
+     */
+    protected static function getInstalledStandardDetails()
+    {
+        return Standards::getInstalledStandardDetails(true);
 
-?>
+    }//end getInstalledStandardDetails()
+
+
+}//end class
