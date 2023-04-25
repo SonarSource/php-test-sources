@@ -1,15 +1,16 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'annotations' => array('enabled' => true),
-    'serializer' => array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'annotations' => ['enabled' => true],
+    'serializer' => [
         'enable_annotations' => true,
-        'mapping' => array(
-            'paths' => array(
+        'mapping' => [
+            'paths' => [
                 '%kernel.project_dir%/Fixtures/TestBundle/Resources/config/serializer_mapping/files',
                 '%kernel.project_dir%/Fixtures/TestBundle/Resources/config/serializer_mapping/serialization.yml',
                 '%kernel.project_dir%/Fixtures/TestBundle/Resources/config/serializer_mapping/serialization.yaml',
-            ),
-        ),
-    ),
-));
+            ],
+        ],
+    ],
+]);

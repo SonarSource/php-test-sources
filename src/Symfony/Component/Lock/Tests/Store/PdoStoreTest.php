@@ -11,20 +11,25 @@
 
 namespace Symfony\Component\Lock\Tests\Store;
 
+use Symfony\Component\Lock\Exception\InvalidTtlException;
+use Symfony\Component\Lock\Key;
+use Symfony\Component\Lock\PersistingStoreInterface;
 use Symfony\Component\Lock\Store\PdoStore;
 
 /**
  * @author Jérémy Derussé <jeremy@derusse.com>
  *
  * @requires extension pdo_sqlite
+ *
+ * @group integration
  */
-class PdoStoreTest extends AbstractStoreTest
+class PdoStoreTest extends AbstractStoreTestCase
 {
     use ExpiringStoreTestTrait;
 
     protected static $dbFile;
 
-    public static function setupBeforeClass()
+    public static function setUpBeforeClass(): void
     {
         self::$dbFile = tempnam(sys_get_temp_dir(), 'sf_sqlite_lock');
 
@@ -32,23 +37,17 @@ class PdoStoreTest extends AbstractStoreTest
         $store->createTable();
     }
 
-    public static function tearDownAfterClass()
+    public static function tearDownAfterClass(): void
     {
         @unlink(self::$dbFile);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     protected function getClockDelay()
     {
         return 1000000;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getStore()
+    public function getStore(): PersistingStoreInterface
     {
         return new PdoStore('sqlite:'.self::$dbFile);
     }
@@ -56,5 +55,45 @@ class PdoStoreTest extends AbstractStoreTest
     public function testAbortAfterExpiration()
     {
         $this->markTestSkipped('Pdo expects a TTL greater than 1 sec. Simulating a slow network is too hard');
+    }
+
+    public function testInvalidTtl()
+    {
+        $this->expectException(InvalidTtlException::class);
+        $store = $this->getStore();
+        $store->putOffExpiration(new Key('toto'), 0.1);
+    }
+
+    public function testInvalidTtlConstruct()
+    {
+        $this->expectException(InvalidTtlException::class);
+
+        return new PdoStore('sqlite:'.self::$dbFile, [], 0.1, 0);
+    }
+
+    /**
+     * @dataProvider provideDsn
+     */
+    public function testDsn(string $dsn, string $file = null)
+    {
+        $key = new Key(uniqid(__METHOD__, true));
+
+        try {
+            $store = new PdoStore($dsn);
+
+            $store->save($key);
+            $this->assertTrue($store->exists($key));
+        } finally {
+            if (null !== $file) {
+                @unlink($file);
+            }
+        }
+    }
+
+    public static function provideDsn()
+    {
+        $dbFile = tempnam(sys_get_temp_dir(), 'sf_sqlite_cache');
+        yield ['sqlite:'.$dbFile.'2', $dbFile.'2'];
+        yield ['sqlite::memory:'];
     }
 }

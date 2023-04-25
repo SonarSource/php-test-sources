@@ -1,8 +1,9 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'serializer' => array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'serializer' => [
         'enabled' => true,
         'cache' => 'foo',
-    ),
-));
+    ],
+]);

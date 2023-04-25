@@ -13,34 +13,32 @@ namespace Symfony\Bridge\Monolog\Handler;
 
 use Monolog\Handler\ChromePHPHandler as BaseChromePhpHandler;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 
 /**
  * ChromePhpHandler.
  *
  * @author Christophe Coevoet <stof@notk.org>
+ *
+ * @final
  */
 class ChromePhpHandler extends BaseChromePhpHandler
 {
-    private $headers = array();
-
-    /**
-     * @var Response
-     */
-    private $response;
+    private array $headers = [];
+    private Response $response;
 
     /**
      * Adds the headers to the response once it's created.
      */
-    public function onKernelResponse(FilterResponseEvent $event)
+    public function onKernelResponse(ResponseEvent $event): void
     {
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
         if (!preg_match(static::USER_AGENT_REGEX, $event->getRequest()->headers->get('User-Agent'))) {
-            $this->sendHeaders = false;
-            $this->headers = array();
+            self::$sendHeaders = false;
+            $this->headers = [];
 
             return;
         }
@@ -49,19 +47,16 @@ class ChromePhpHandler extends BaseChromePhpHandler
         foreach ($this->headers as $header => $content) {
             $this->response->headers->set($header, $content);
         }
-        $this->headers = array();
+        $this->headers = [];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function sendHeader($header, $content)
+    protected function sendHeader($header, $content): void
     {
-        if (!$this->sendHeaders) {
+        if (!self::$sendHeaders) {
             return;
         }
 
-        if ($this->response) {
+        if (isset($this->response)) {
             $this->response->headers->set($header, $content);
         } else {
             $this->headers[$header] = $content;
@@ -71,7 +66,7 @@ class ChromePhpHandler extends BaseChromePhpHandler
     /**
      * Override default behavior since we check it in onKernelResponse.
      */
-    protected function headersAccepted()
+    protected function headersAccepted(): bool
     {
         return true;
     }

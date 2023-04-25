@@ -12,6 +12,7 @@
 namespace Symfony\Component\Security\Core\Authorization;
 
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\Strategy\AccessDecisionStrategyInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 
 /**
@@ -24,68 +25,85 @@ use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
  */
 class TraceableAccessDecisionManager implements AccessDecisionManagerInterface
 {
-    private $manager;
-    private $strategy;
-    private $voters = array();
-    private $decisionLog = array();
+    private AccessDecisionManagerInterface $manager;
+    private ?AccessDecisionStrategyInterface $strategy = null;
+    /** @var iterable<mixed, VoterInterface> */
+    private iterable $voters = [];
+    private array $decisionLog = []; // All decision logs
+    private array $currentLog = [];  // Logs being filled in
 
     public function __construct(AccessDecisionManagerInterface $manager)
     {
         $this->manager = $manager;
 
-        if ($this->manager instanceof AccessDecisionManager) {
-            // The strategy and voters are stored in a private properties of the decorated service
-            $reflection = new \ReflectionProperty(AccessDecisionManager::class, 'strategy');
-            $reflection->setAccessible(true);
+        // The strategy and voters are stored in a private properties of the decorated service
+        if (property_exists($manager, 'strategy')) {
+            $reflection = new \ReflectionProperty($manager::class, 'strategy');
             $this->strategy = $reflection->getValue($manager);
-            $reflection = new \ReflectionProperty(AccessDecisionManager::class, 'voters');
-            $reflection->setAccessible(true);
+        }
+        if (property_exists($manager, 'voters')) {
+            $reflection = new \ReflectionProperty($manager::class, 'voters');
             $this->voters = $reflection->getValue($manager);
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function decide(TokenInterface $token, array $attributes, $object = null)
+    public function decide(TokenInterface $token, array $attributes, mixed $object = null, bool $allowMultipleAttributes = false): bool
     {
-        $result = $this->manager->decide($token, $attributes, $object);
-
-        $this->decisionLog[] = array(
+        $currentDecisionLog = [
             'attributes' => $attributes,
             'object' => $object,
-            'result' => $result,
-        );
+            'voterDetails' => [],
+        ];
+
+        $this->currentLog[] = &$currentDecisionLog;
+
+        $result = $this->manager->decide($token, $attributes, $object, $allowMultipleAttributes);
+
+        $currentDecisionLog['result'] = $result;
+
+        $this->decisionLog[] = array_pop($this->currentLog); // Using a stack since decide can be called by voters
 
         return $result;
     }
 
     /**
-     * @return string
+     * Adds voter vote and class to the voter details.
+     *
+     * @param array $attributes attributes used for the vote
+     * @param int   $vote       vote of the voter
      */
-    public function getStrategy()
+    public function addVoterVote(VoterInterface $voter, array $attributes, int $vote): void
     {
-        // The $strategy property is misleading because it stores the name of its
-        // method (e.g. 'decideAffirmative') instead of the original strategy name
-        // (e.g. 'affirmative')
-        return null === $this->strategy ? '-' : strtolower(substr($this->strategy, 6));
+        $currentLogIndex = \count($this->currentLog) - 1;
+        $this->currentLog[$currentLogIndex]['voterDetails'][] = [
+            'voter' => $voter,
+            'attributes' => $attributes,
+            'vote' => $vote,
+        ];
+    }
+
+    public function getStrategy(): string
+    {
+        if (null === $this->strategy) {
+            return '-';
+        }
+        if (method_exists($this->strategy, '__toString')) {
+            return (string) $this->strategy;
+        }
+
+        return get_debug_type($this->strategy);
     }
 
     /**
-     * @return iterable|VoterInterface[]
+     * @return iterable<mixed, VoterInterface>
      */
-    public function getVoters()
+    public function getVoters(): iterable
     {
         return $this->voters;
     }
 
-    /**
-     * @return array
-     */
-    public function getDecisionLog()
+    public function getDecisionLog(): array
     {
         return $this->decisionLog;
     }
 }
-
-class_alias(TraceableAccessDecisionManager::class, DebugAccessDecisionManager::class);

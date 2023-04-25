@@ -11,19 +11,20 @@
 
 namespace Symfony\Bundle\SecurityBundle\Tests\Functional;
 
-class MissingUserProviderTest extends WebTestCase
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
+
+class MissingUserProviderTest extends AbstractWebTestCase
 {
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage "default" firewall requires a user provider but none was defined.
-     */
     public function testUserProviderIsNeeded()
     {
-        $client = $this->createClient(array('test_case' => 'MissingUserProvider', 'root_config' => 'config.yml'));
+        $client = $this->createClient(['test_case' => 'MissingUserProvider', 'root_config' => 'config.yml']);
 
-        $client->request('GET', '/', array(), array(), array(
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('"default" firewall requires a user provider but none was defined');
+
+        $client->request('GET', '/', [], [], [
             'PHP_AUTH_USER' => 'username',
             'PHP_AUTH_PW' => 'pa$$word',
-        ));
+        ]);
     }
 }

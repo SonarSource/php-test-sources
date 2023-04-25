@@ -21,22 +21,19 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  */
 class ValidationMiddleware implements MiddlewareInterface
 {
-    private $validator;
+    private ValidatorInterface $validator;
 
     public function __construct(ValidatorInterface $validator)
     {
         $this->validator = $validator;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function handle(Envelope $envelope, callable $next): void
+    public function handle(Envelope $envelope, StackInterface $stack): Envelope
     {
         $message = $envelope->getMessage();
         $groups = null;
         /** @var ValidationStamp|null $validationStamp */
-        if ($validationStamp = $envelope->get(ValidationStamp::class)) {
+        if ($validationStamp = $envelope->last(ValidationStamp::class)) {
             $groups = $validationStamp->getGroups();
         }
 
@@ -45,6 +42,6 @@ class ValidationMiddleware implements MiddlewareInterface
             throw new ValidationFailedException($message, $violations);
         }
 
-        $next($envelope);
+        return $stack->next()->handle($envelope, $stack);
     }
 }

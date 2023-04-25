@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\DataCollector\DumpDataCollector;
+use Symfony\Component\HttpKernel\Debug\FileLinkFormatter;
 use Symfony\Component\VarDumper\Cloner\Data;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 use Symfony\Component\VarDumper\Server\Connection;
@@ -26,9 +27,9 @@ class DumpDataCollectorTest extends TestCase
 {
     public function testDump()
     {
-        $data = new Data(array(array(123)));
+        $data = new Data([[123]]);
 
-        $collector = new DumpDataCollector();
+        $collector = new DumpDataCollector(null, new FileLinkFormatter([]));
 
         $this->assertSame('dump', $collector->getName());
 
@@ -41,28 +42,32 @@ class DumpDataCollectorTest extends TestCase
         $dump[0]['data'] = preg_replace('/^.*?<pre/', '<pre', $dump[0]['data']);
         $dump[0]['data'] = preg_replace('/sf-dump-\d+/', 'sf-dump', $dump[0]['data']);
 
-        $xDump = array(
-            array(
+        $xDump = [
+            [
                 'data' => "<pre class=sf-dump id=sf-dump data-indent-pad=\"  \"><span class=sf-dump-num>123</span>\n</pre><script>Sfdump(\"sf-dump\")</script>\n",
                 'name' => 'DumpDataCollectorTest.php',
                 'file' => __FILE__,
                 'line' => $line,
                 'fileExcerpt' => false,
-            ),
-        );
+            ],
+        ];
         $this->assertEquals($xDump, $dump);
 
-        $this->assertStringMatchesFormat('a:3:{i:0;a:5:{s:4:"data";%c:39:"Symfony\Component\VarDumper\Cloner\Data":%a', $collector->serialize());
+        $this->assertStringMatchesFormat('%a;a:%d:{i:0;a:5:{s:4:"data";%c:39:"Symfony\Component\VarDumper\Cloner\Data":%a', serialize($collector));
         $this->assertSame(0, $collector->getDumpsCount());
-        $this->assertSame('a:2:{i:0;b:0;i:1;s:5:"UTF-8";}', $collector->serialize());
+
+        $serialized = serialize($collector);
+        $this->assertSame("O:60:\"Symfony\Component\HttpKernel\DataCollector\DumpDataCollector\":1:{s:7:\"\0*\0data\";a:2:{i:0;b:0;i:1;s:5:\"UTF-8\";}}", $serialized);
+
+        $this->assertInstanceOf(DumpDataCollector::class, unserialize($serialized));
     }
 
     public function testDumpWithServerConnection()
     {
-        $data = new Data(array(array(123)));
+        $data = new Data([[123]]);
 
         // Server is up, server dumper is used
-        $serverDumper = $this->getMockBuilder(Connection::class)->disableOriginalConstructor()->getMock();
+        $serverDumper = $this->createMock(Connection::class);
         $serverDumper->expects($this->once())->method('write')->willReturn(true);
 
         $collector = new DumpDataCollector(null, null, null, null, $serverDumper);
@@ -72,12 +77,12 @@ class DumpDataCollectorTest extends TestCase
         ob_start();
         $collector->collect(new Request(), new Response());
         $this->assertEmpty(ob_get_clean());
-        $this->assertStringMatchesFormat('a:3:{i:0;a:5:{s:4:"data";%c:39:"Symfony\Component\VarDumper\Cloner\Data":%a', $collector->serialize());
+        $this->assertStringMatchesFormat('%a;a:%d:{i:0;a:5:{s:4:"data";%c:39:"Symfony\Component\VarDumper\Cloner\Data":%a', serialize($collector));
     }
 
     public function testCollectDefault()
     {
-        $data = new Data(array(array(123)));
+        $data = new Data([[123]]);
 
         $collector = new DumpDataCollector();
 
@@ -90,12 +95,12 @@ class DumpDataCollectorTest extends TestCase
 
         $this->assertSame("DumpDataCollectorTest.php on line {$line}:\n123\n", $output);
         $this->assertSame(1, $collector->getDumpsCount());
-        $collector->serialize();
+        serialize($collector);
     }
 
     public function testCollectHtml()
     {
-        $data = new Data(array(array(123)));
+        $data = new Data([[123]]);
 
         $collector = new DumpDataCollector(null, 'test://%f:%l');
 
@@ -118,12 +123,12 @@ EOTXT;
 
         $this->assertSame($xOutput, trim($output));
         $this->assertSame(1, $collector->getDumpsCount());
-        $collector->serialize();
+        serialize($collector);
     }
 
     public function testFlush()
     {
-        $data = new Data(array(array(456)));
+        $data = new Data([[456]]);
         $collector = new DumpDataCollector();
         $collector->dump($data);
         $line = __LINE__ - 1;
@@ -136,7 +141,7 @@ EOTXT;
 
     public function testFlushNothingWhenDataDumperIsProvided()
     {
-        $data = new Data(array(array(456)));
+        $data = new Data([[456]]);
         $dumper = new CliDumper('php://output');
         $collector = new DumpDataCollector(null, null, null, null, $dumper);
 
@@ -144,11 +149,8 @@ EOTXT;
         $collector->dump($data);
         $line = __LINE__ - 1;
         $output = preg_replace("/\033\[[^m]*m/", '', ob_get_clean());
-        if (\PHP_VERSION_ID >= 50400) {
-            $this->assertSame("DumpDataCollectorTest.php on line {$line}:\n456\n", $output);
-        } else {
-            $this->assertSame("\"DumpDataCollectorTest.php on line {$line}:\"\n456\n", $output);
-        }
+
+        $this->assertSame("DumpDataCollectorTest.php on line {$line}:\n456\n", $output);
 
         ob_start();
         $collector->__destruct();

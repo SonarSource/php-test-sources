@@ -11,21 +11,21 @@
 
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Intl\Data\Bundle\Compiler\GenrbCompiler;
-use Symfony\Component\Intl\Data\Bundle\Reader\BundleEntryReader;
-use Symfony\Component\Intl\Data\Bundle\Reader\JsonBundleReader;
-use Symfony\Component\Intl\Data\Bundle\Writer\JsonBundleWriter;
+use Symfony\Component\Intl\Data\Bundle\Writer\PhpBundleWriter;
 use Symfony\Component\Intl\Data\Generator\CurrencyDataGenerator;
 use Symfony\Component\Intl\Data\Generator\GeneratorConfig;
 use Symfony\Component\Intl\Data\Generator\LanguageDataGenerator;
 use Symfony\Component\Intl\Data\Generator\LocaleDataGenerator;
 use Symfony\Component\Intl\Data\Generator\RegionDataGenerator;
 use Symfony\Component\Intl\Data\Generator\ScriptDataGenerator;
-use Symfony\Component\Intl\Data\Provider\LanguageDataProvider;
-use Symfony\Component\Intl\Data\Provider\RegionDataProvider;
-use Symfony\Component\Intl\Data\Provider\ScriptDataProvider;
+use Symfony\Component\Intl\Data\Generator\TimezoneDataGenerator;
 use Symfony\Component\Intl\Intl;
 use Symfony\Component\Intl\Locale;
 use Symfony\Component\Intl\Util\GitRepository;
+
+if ('cli' !== \PHP_SAPI) {
+    throw new Exception('This script must be run from the command line.');
+}
 
 require_once __DIR__.'/common.php';
 require_once __DIR__.'/autoload.php';
@@ -77,9 +77,7 @@ if ($argc >= 2) {
     echo "Git clone to {$repoDir} complete.\n";
 }
 
-$gitTag = $git->getLastTag(function ($tag) {
-    return preg_match('#^release-[0-9]{1,}-[0-9]{1}$#', $tag);
-});
+$gitTag = $git->getLastTag(fn ($tag) => preg_match('#^release-[0-9]{1,}-[0-9]{1}$#', $tag));
 $shortIcuVersion = strip_minor_versions(preg_replace('#release-([0-9]{1,})-([0-9]{1,})#', '$1.$2', $gitTag));
 
 echo "Checking out `{$gitTag}` for version `{$shortIcuVersion}`...\n";
@@ -170,91 +168,44 @@ echo "Preparing resource bundle compilation (version $icuVersionInDownload)...\n
 
 $compiler = new GenrbCompiler($genrb, $genrbEnv);
 $config = new GeneratorConfig($sourceDir.'/data', $icuVersionInDownload);
+$dataDir = dirname(__DIR__).'/data';
 
-$baseDir = dirname(__DIR__).'/data';
-
-//$txtDir = $baseDir.'/txt';
-$jsonDir = $baseDir;
-//$phpDir = $baseDir.'/'.Intl::PHP;
-//$resDir = $baseDir.'/'.Intl::RB_V2;
-
-$targetDirs = array($jsonDir/*, $resDir*/);
-$workingDirs = array($jsonDir/*, $txtDir, $resDir*/);
-
-//$config->addBundleWriter($txtDir, new TextBundleWriter());
-$config->addBundleWriter($jsonDir, new JsonBundleWriter());
+$config->addBundleWriter($dataDir, new PhpBundleWriter());
 
 echo "Starting resource bundle compilation. This may take a while...\n";
 
-$filesystem->remove($workingDirs);
-
-foreach ($workingDirs as $targetDir) {
-    $filesystem->mkdir(array(
-        $targetDir.'/'.Intl::CURRENCY_DIR,
-        $targetDir.'/'.Intl::LANGUAGE_DIR,
-        $targetDir.'/'.Intl::LOCALE_DIR,
-        $targetDir.'/'.Intl::REGION_DIR,
-        $targetDir.'/'.Intl::SCRIPT_DIR,
-    ));
-}
-
 // We don't want to use fallback to English during generation
-Locale::setDefaultFallback(null);
+Locale::setDefaultFallback('root');
 
 echo "Generating language data...\n";
 
 $generator = new LanguageDataGenerator($compiler, Intl::LANGUAGE_DIR);
 $generator->generateData($config);
 
-//echo "Compiling...\n";
-//
-//$compiler->compile($txtDir.'/'.Intl::LANGUAGE_DIR, $resDir.'/'.Intl::LANGUAGE_DIR);
-
 echo "Generating script data...\n";
 
 $generator = new ScriptDataGenerator($compiler, Intl::SCRIPT_DIR);
 $generator->generateData($config);
-
-//echo "Compiling...\n";
-//
-//$compiler->compile($txtDir.'/'.Intl::SCRIPT_DIR, $resDir.'/'.Intl::SCRIPT_DIR);
 
 echo "Generating region data...\n";
 
 $generator = new RegionDataGenerator($compiler, Intl::REGION_DIR);
 $generator->generateData($config);
 
-//echo "Compiling...\n";
-//
-//$compiler->compile($txtDir.'/'.Intl::REGION_DIR, $resDir.'/'.Intl::REGION_DIR);
-
 echo "Generating currency data...\n";
 
 $generator = new CurrencyDataGenerator($compiler, Intl::CURRENCY_DIR);
 $generator->generateData($config);
 
-//echo "Compiling...\n";
-//
-//$compiler->compile($txtDir.'/'.Intl::CURRENCY_DIR, $resDir.'/'.Intl::CURRENCY_DIR);
-
 echo "Generating locale data...\n";
 
-$reader = new BundleEntryReader(new JsonBundleReader());
-
-$generator = new LocaleDataGenerator(
-    Intl::LOCALE_DIR,
-    new LanguageDataProvider($jsonDir.'/'.Intl::LANGUAGE_DIR, $reader),
-    new ScriptDataProvider($jsonDir.'/'.Intl::SCRIPT_DIR, $reader),
-    new RegionDataProvider($jsonDir.'/'.Intl::REGION_DIR, $reader)
-);
-
+$generator = new LocaleDataGenerator($compiler, Intl::LOCALE_DIR);
 $generator->generateData($config);
 
-//echo "Compiling...\n";
-//
-//$compiler->compile($txtDir.'/'.Intl::LOCALE_DIR, $resDir.'/'.Intl::LOCALE_DIR);
-//
-//$filesystem->remove($txtDir);
+echo "Generating timezone data...\n";
+
+$generator = new TimezoneDataGenerator($compiler, Intl::TIMEZONE_DIR);
+$generator->generateData($config);
 
 echo "Resource bundle compilation complete.\n";
 
@@ -269,18 +220,15 @@ Date: {$git->getLastAuthoredDate()->format('c')}
 
 GIT_INFO;
 
-foreach ($targetDirs as $targetDir) {
-    $gitInfoFile = $targetDir.'/git-info.txt';
+$gitInfoFile = $dataDir.'/git-info.txt';
 
-    file_put_contents($gitInfoFile, $gitInfo);
+file_put_contents($gitInfoFile, $gitInfo);
 
-    echo "Wrote $gitInfoFile.\n";
+echo "Wrote $gitInfoFile.\n";
 
-    $versionFile = $targetDir.'/version.txt';
+$versionFile = $dataDir.'/version.txt';
 
-    file_put_contents($versionFile, "$icuVersionInDownload\n");
+file_put_contents($versionFile, "$icuVersionInDownload\n");
 
-    echo "Wrote $versionFile.\n";
-}
-
+echo "Wrote $versionFile.\n";
 echo "Done.\n";

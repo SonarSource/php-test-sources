@@ -23,16 +23,12 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  */
 class ValidationListener implements EventSubscriberInterface
 {
-    private $validator;
+    private ValidatorInterface $validator;
+    private ViolationMapperInterface $violationMapper;
 
-    private $violationMapper;
-
-    /**
-     * {@inheritdoc}
-     */
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
-        return array(FormEvents::POST_SUBMIT => 'validateForm');
+        return [FormEvents::POST_SUBMIT => 'validateForm'];
     }
 
     public function __construct(ValidatorInterface $validator, ViolationMapperInterface $violationMapper)
@@ -42,21 +38,18 @@ class ValidationListener implements EventSubscriberInterface
     }
 
     /**
-     * Validates the form and its domain object.
-     *
-     * @param FormEvent $event The event object
+     * @return void
      */
     public function validateForm(FormEvent $event)
     {
         $form = $event->getForm();
 
         if ($form->isRoot()) {
-            // Validate the form in group "Default"
+            // Form groups are validated internally (FormValidator). Here we don't set groups as they are retrieved into the validator.
             foreach ($this->validator->validate($form) as $violation) {
                 // Allow the "invalid" constraint to be put onto
                 // non-synchronized forms
-                // ConstraintViolation::getConstraint() must not expect to provide a constraint as long as Symfony\Component\Validator\ExecutionContext exists (before 3.0)
-                $allowNonSynchronized = (null === $violation->getConstraint() || $violation->getConstraint() instanceof Form) && Form::NOT_SYNCHRONIZED_ERROR === $violation->getCode();
+                $allowNonSynchronized = $violation->getConstraint() instanceof Form && Form::NOT_SYNCHRONIZED_ERROR === $violation->getCode();
 
                 $this->violationMapper->mapViolation($violation, $form, $allowNonSynchronized);
             }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Check for merge conflict artifacts
+ * Check for merge conflict artefacts.
  *
  * @author    Juliette Reinders Folmer <phpcs_nospam@adviesenzo.nl>
  * @copyright 2017 Juliette Reinders Folmer. All rights reserved.
@@ -9,8 +9,8 @@
 
 namespace PHP_CodeSniffer\Standards\Generic\Sniffs\VersionControl;
 
-use PHP_CodeSniffer\Sniffs\Sniff;
 use PHP_CodeSniffer\Files\File;
+use PHP_CodeSniffer\Sniffs\Sniff;
 
 class GitMergeConflictSniff implements Sniff
 {
@@ -34,7 +34,10 @@ class GitMergeConflictSniff implements Sniff
      */
     public function register()
     {
-        return [T_OPEN_TAG];
+        return [
+            T_OPEN_TAG,
+            T_OPEN_TAG_WITH_ECHO,
+        ];
 
     }//end register()
 
@@ -84,7 +87,7 @@ class GitMergeConflictSniff implements Sniff
                         && trim($tokens[($i + 2)]['content']) === '<<< HEAD'
                     ) {
                         $phpcsFile->addError($error, $i, 'OpenerFound', ['opener']);
-                        $i = ($i + 2);
+                        $i += 2;
                     }
                     break;
 
@@ -98,7 +101,7 @@ class GitMergeConflictSniff implements Sniff
                         && $tokens[($i + 4)]['content'] === ' '
                     ) {
                         $phpcsFile->addError($error, $i, 'CloserFound', ['closer']);
-                        $i = ($i + 4);
+                        $i += 4;
                     }
                     break;
 
@@ -111,7 +114,7 @@ class GitMergeConflictSniff implements Sniff
                         && $tokens[($i + 3)]['content'] === "\n"
                     ) {
                         $phpcsFile->addError($error, $i, 'DelimiterFound', ['delimiter']);
-                        $i = ($i + 3);
+                        $i += 3;
                     }
                     break;
 
@@ -159,7 +162,7 @@ class GitMergeConflictSniff implements Sniff
                         && trim($tokens[($i + 5)]['content']) === 'HEAD'
                     ) {
                         $phpcsFile->addError($error, $i, 'OpenerFound', ['opener']);
-                        $i = ($i + 5);
+                        $i += 5;
                     }
                     break;
 
@@ -172,7 +175,7 @@ class GitMergeConflictSniff implements Sniff
                         && $tokens[($i + 3)]['content'] === "\n"
                     ) {
                         $phpcsFile->addError($error, $i, 'DelimiterFound', ['delimiter']);
-                        $i = ($i + 3);
+                        $i += 3;
                     }
                     break;
 
@@ -184,7 +187,7 @@ class GitMergeConflictSniff implements Sniff
                         && $tokens[($i + 2)]['code'] === T_GREATER_THAN
                     ) {
                         $phpcsFile->addError($error, $i, 'CloserFound', ['closer']);
-                        $i = ($i + 2);
+                        $i += 2;
                     }
                     break;
 

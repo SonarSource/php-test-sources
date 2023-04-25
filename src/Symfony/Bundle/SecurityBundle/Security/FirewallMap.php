@@ -24,46 +24,38 @@ use Symfony\Component\Security\Http\FirewallMapInterface;
  */
 class FirewallMap implements FirewallMapInterface
 {
-    private $container;
-    private $map;
-    private $contexts;
+    private ContainerInterface $container;
+    private iterable $map;
 
     public function __construct(ContainerInterface $container, iterable $map)
     {
         $this->container = $container;
         $this->map = $map;
-        $this->contexts = new \SplObjectStorage();
     }
 
-    public function getListeners(Request $request)
+    public function getListeners(Request $request): array
     {
         $context = $this->getFirewallContext($request);
 
         if (null === $context) {
-            return array(array(), null, null);
+            return [[], null, null];
         }
 
-        return array($context->getListeners(), $context->getExceptionListener(), $context->getLogoutListener());
+        return [$context->getListeners(), $context->getExceptionListener(), $context->getLogoutListener()];
     }
 
-    /**
-     * @return FirewallConfig|null
-     */
-    public function getFirewallConfig(Request $request)
+    public function getFirewallConfig(Request $request): ?FirewallConfig
     {
         $context = $this->getFirewallContext($request);
 
         if (null === $context) {
-            return;
+            return null;
         }
 
         return $context->getConfig();
     }
 
-    /**
-     * @return FirewallContext
-     */
-    private function getFirewallContext(Request $request)
+    private function getFirewallContext(Request $request): ?FirewallContext
     {
         if ($request->attributes->has('_firewall_context')) {
             $storedContextId = $request->attributes->get('_firewall_context');
@@ -80,8 +72,17 @@ class FirewallMap implements FirewallMapInterface
             if (null === $requestMatcher || $requestMatcher->matches($request)) {
                 $request->attributes->set('_firewall_context', $contextId);
 
-                return $this->container->get($contextId);
+                /** @var FirewallContext $context */
+                $context = $this->container->get($contextId);
+
+                if ($context->getConfig()?->isStateless() && !$request->attributes->has('_stateless')) {
+                    $request->attributes->set('_stateless', true);
+                }
+
+                return $context;
             }
         }
+
+        return null;
     }
 }

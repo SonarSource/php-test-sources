@@ -1,7 +1,8 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'assets' => array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'assets' => [
         'enabled' => false,
-    ),
-));
+    ],
+]);

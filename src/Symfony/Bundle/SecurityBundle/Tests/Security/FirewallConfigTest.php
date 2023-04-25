@@ -18,8 +18,8 @@ class FirewallConfigTest extends TestCase
 {
     public function testGetters()
     {
-        $listeners = array('logout', 'remember_me', 'anonymous');
-        $options = array(
+        $authenticators = ['form_login', 'remember_me'];
+        $options = [
             'request_matcher' => 'foo_request_matcher',
             'security' => false,
             'stateless' => false,
@@ -29,8 +29,8 @@ class FirewallConfigTest extends TestCase
             'access_denied_url' => 'foo_access_denied_url',
             'access_denied_handler' => 'foo_access_denied_handler',
             'user_checker' => 'foo_user_checker',
-            'switch_user' => array('provider' => null, 'parameter' => '_switch_user', 'role' => 'ROLE_ALLOWED_TO_SWITCH'),
-        );
+            'switch_user' => ['provider' => null, 'parameter' => '_switch_user', 'role' => 'ROLE_ALLOWED_TO_SWITCH'],
+        ];
 
         $config = new FirewallConfig(
             'foo_firewall',
@@ -43,7 +43,7 @@ class FirewallConfigTest extends TestCase
             $options['entry_point'],
             $options['access_denied_handler'],
             $options['access_denied_url'],
-            $listeners,
+            $authenticators,
             $options['switch_user']
         );
 
@@ -57,8 +57,7 @@ class FirewallConfigTest extends TestCase
         $this->assertSame($options['access_denied_handler'], $config->getAccessDeniedHandler());
         $this->assertSame($options['access_denied_url'], $config->getAccessDeniedUrl());
         $this->assertSame($options['user_checker'], $config->getUserChecker());
-        $this->assertTrue($config->allowsAnonymous());
-        $this->assertSame($listeners, $config->getListeners());
+        $this->assertSame($authenticators, $config->getAuthenticators());
         $this->assertSame($options['switch_user'], $config->getSwitchUser());
     }
 }

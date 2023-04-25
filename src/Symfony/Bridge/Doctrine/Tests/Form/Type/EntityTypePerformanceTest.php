@@ -12,8 +12,9 @@
 namespace Symfony\Bridge\Doctrine\Tests\Form\Type;
 
 use Doctrine\ORM\Tools\SchemaTool;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bridge\Doctrine\Form\DoctrineOrmExtension;
-use Symfony\Bridge\Doctrine\Test\DoctrineTestHelper;
+use Symfony\Bridge\Doctrine\Tests\DoctrineTestHelper;
 use Symfony\Bridge\Doctrine\Tests\Fixtures\SingleIntIdEntity;
 use Symfony\Component\Form\Extension\Core\CoreExtension;
 use Symfony\Component\Form\Test\FormPerformanceTestCase;
@@ -23,7 +24,7 @@ use Symfony\Component\Form\Test\FormPerformanceTestCase;
  */
 class EntityTypePerformanceTest extends FormPerformanceTestCase
 {
-    const ENTITY_CLASS = 'Symfony\Bridge\Doctrine\Tests\Fixtures\SingleIntIdEntity';
+    private const ENTITY_CLASS = 'Symfony\Bridge\Doctrine\Tests\Fixtures\SingleIntIdEntity';
 
     /**
      * @var \Doctrine\ORM\EntityManager
@@ -32,32 +33,32 @@ class EntityTypePerformanceTest extends FormPerformanceTestCase
 
     protected function getExtensions()
     {
-        $manager = $this->getMockBuilder('Doctrine\Common\Persistence\ManagerRegistry')->getMock();
+        $manager = $this->createMock(ManagerRegistry::class);
 
         $manager->expects($this->any())
             ->method('getManager')
-            ->will($this->returnValue($this->em));
+            ->willReturn($this->em);
 
         $manager->expects($this->any())
             ->method('getManagerForClass')
-            ->will($this->returnValue($this->em));
+            ->willReturn($this->em);
 
-        return array(
+        return [
             new CoreExtension(),
             new DoctrineOrmExtension($manager),
-        );
+        ];
     }
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->em = DoctrineTestHelper::createTestEntityManager();
 
         parent::setUp();
 
         $schemaTool = new SchemaTool($this->em);
-        $classes = array(
+        $classes = [
             $this->em->getClassMetadata(self::ENTITY_CLASS),
-        );
+        ];
 
         try {
             $schemaTool->dropSchema($classes);
@@ -90,9 +91,9 @@ class EntityTypePerformanceTest extends FormPerformanceTestCase
         $this->setMaxRunningTime(1);
 
         for ($i = 0; $i < 40; ++$i) {
-            $form = $this->factory->create('Symfony\Bridge\Doctrine\Form\Type\EntityType', null, array(
+            $form = $this->factory->create('Symfony\Bridge\Doctrine\Form\Type\EntityType', null, [
                 'class' => self::ENTITY_CLASS,
-            ));
+            ]);
 
             // force loading of the choice list
             $form->createView();
@@ -108,10 +109,10 @@ class EntityTypePerformanceTest extends FormPerformanceTestCase
         $this->setMaxRunningTime(1);
 
         for ($i = 0; $i < 40; ++$i) {
-            $form = $this->factory->create('Symfony\Bridge\Doctrine\Form\Type\EntityType', null, array(
+            $form = $this->factory->create('Symfony\Bridge\Doctrine\Form\Type\EntityType', null, [
                 'class' => self::ENTITY_CLASS,
                 'choices' => $choices,
-            ));
+            ]);
 
             // force loading of the choice list
             $form->createView();
@@ -127,10 +128,10 @@ class EntityTypePerformanceTest extends FormPerformanceTestCase
         $this->setMaxRunningTime(1);
 
         for ($i = 0; $i < 40; ++$i) {
-            $form = $this->factory->create('Symfony\Bridge\Doctrine\Form\Type\EntityType', null, array(
+            $form = $this->factory->create('Symfony\Bridge\Doctrine\Form\Type\EntityType', null, [
                     'class' => self::ENTITY_CLASS,
                     'preferred_choices' => $choices,
-                ));
+                ]);
 
             // force loading of the choice list
             $form->createView();

@@ -13,6 +13,7 @@ namespace Symfony\Component\Intl\Tests\Util;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Intl\Exception\RuntimeException;
 use Symfony\Component\Intl\Util\GitRepository;
 
 /**
@@ -22,10 +23,11 @@ class GitRepositoryTest extends TestCase
 {
     private $targetDir;
 
-    const REPO_URL = 'https://github.com/symfony/intl.git';
+    private const REPO_URL = 'https://github.com/symfony/intl.git';
 
     /**
      * @before
+     *
      * @after
      */
     protected function cleanup()
@@ -38,9 +40,9 @@ class GitRepositoryTest extends TestCase
 
     public function testItThrowsAnExceptionIfInitialisedWithNonGitDirectory()
     {
-        $this->expectException('Symfony\Component\Intl\Exception\RuntimeException');
+        $this->expectException(RuntimeException::class);
 
-        @mkdir($this->targetDir, '0777', true);
+        @mkdir($this->targetDir, 0777, true);
 
         new GitRepository($this->targetDir);
     }
@@ -49,22 +51,22 @@ class GitRepositoryTest extends TestCase
     {
         $git = GitRepository::download(self::REPO_URL, $this->targetDir);
 
-        $this->assertInstanceOf('Symfony\Component\Intl\Util\GitRepository', $git);
+        $this->assertInstanceOf(GitRepository::class, $git);
         $this->assertDirectoryExists($this->targetDir.'/.git');
         $this->assertSame($this->targetDir, $git->getPath());
         $this->assertSame(self::REPO_URL, $git->getUrl());
-        $this->assertRegExp('#^[0-9a-z]{40}$#', $git->getLastCommitHash());
+        $this->assertMatchesRegularExpression('#^[0-9a-z]{40}$#', $git->getLastCommitHash());
         $this->assertNotEmpty($git->getLastAuthor());
-        $this->assertInstanceOf('DateTime', $git->getLastAuthoredDate());
+        $this->assertInstanceOf(\DateTimeImmutable::class, $git->getLastAuthoredDate());
         $this->assertStringMatchesFormat('v%s', $git->getLastTag());
-        $this->assertStringMatchesFormat('v3%s', $git->getLastTag(function ($tag) { return 0 === strpos($tag, 'v3'); }));
+        $this->assertStringMatchesFormat('v3%s', $git->getLastTag(fn ($tag) => str_starts_with($tag, 'v3')));
     }
 
     public function testItCheckoutsToTheLastTag()
     {
         $git = GitRepository::download(self::REPO_URL, $this->targetDir);
         $lastCommitHash = $git->getLastCommitHash();
-        $lastV3Tag = $git->getLastTag(function ($tag) { return 0 === strpos($tag, 'v3'); });
+        $lastV3Tag = $git->getLastTag(fn ($tag) => str_starts_with($tag, 'v3'));
 
         $git->checkout($lastV3Tag);
 

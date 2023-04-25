@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Symfony\Bridge\Doctrine\Tests\DependencyInjection\CompilerPass;
 
 use PHPUnit\Framework\TestCase;
@@ -9,24 +18,22 @@ use Symfony\Component\DependencyInjection\Definition;
 
 class RegisterMappingsPassTest extends TestCase
 {
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessageould Could not find the manager name parameter in the container. Tried the following parameter names: "manager.param.one", "manager.param.two"
-     */
     public function testNoDriverParmeterException()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Could not find the manager name parameter in the container. Tried the following parameter names: "manager.param.one", "manager.param.two"');
         $container = $this->createBuilder();
-        $this->process($container, array(
+        $this->process($container, [
             'manager.param.one',
             'manager.param.two',
-        ));
+        ]);
     }
 
     private function process(ContainerBuilder $container, array $managerParamNames)
     {
         $pass = new ConcreteMappingsPass(
             new Definition('\stdClass'),
-            array(),
+            [],
             $managerParamNames,
             'some.%s.metadata_driver'
         );

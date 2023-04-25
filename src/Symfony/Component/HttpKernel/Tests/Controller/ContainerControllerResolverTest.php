@@ -19,35 +19,6 @@ use Symfony\Component\HttpKernel\Controller\ContainerControllerResolver;
 
 class ContainerControllerResolverTest extends ControllerResolverTest
 {
-    /**
-     * @group legacy
-     * @expectedDeprecation Referencing controllers with a single colon is deprecated since Symfony 4.1. Use foo::action instead.
-     */
-    public function testGetControllerServiceWithSingleColon()
-    {
-        $service = new ControllerTestService('foo');
-
-        $container = $this->createMockContainer();
-        $container->expects($this->once())
-            ->method('has')
-            ->with('foo')
-            ->will($this->returnValue(true));
-        $container->expects($this->once())
-            ->method('get')
-            ->with('foo')
-            ->will($this->returnValue($service))
-        ;
-
-        $resolver = $this->createControllerResolver(null, $container);
-        $request = Request::create('/');
-        $request->attributes->set('_controller', 'foo:action');
-
-        $controller = $resolver->getController($request);
-
-        $this->assertSame($service, $controller[0]);
-        $this->assertSame('action', $controller[1]);
-    }
-
     public function testGetControllerService()
     {
         $service = new ControllerTestService('foo');
@@ -56,11 +27,11 @@ class ContainerControllerResolverTest extends ControllerResolverTest
         $container->expects($this->once())
             ->method('has')
             ->with('foo')
-            ->will($this->returnValue(true));
+            ->willReturn(true);
         $container->expects($this->once())
             ->method('get')
             ->with('foo')
-            ->will($this->returnValue($service))
+            ->willReturn($service)
         ;
 
         $resolver = $this->createControllerResolver(null, $container);
@@ -81,12 +52,12 @@ class ContainerControllerResolverTest extends ControllerResolverTest
         $container->expects($this->once())
             ->method('has')
             ->with('foo')
-            ->will($this->returnValue(true))
+            ->willReturn(true)
         ;
         $container->expects($this->once())
             ->method('get')
             ->with('foo')
-            ->will($this->returnValue($service))
+            ->willReturn($service)
         ;
 
         $resolver = $this->createControllerResolver(null, $container);
@@ -106,12 +77,12 @@ class ContainerControllerResolverTest extends ControllerResolverTest
         $container->expects($this->once())
             ->method('has')
             ->with(InvokableControllerService::class)
-            ->will($this->returnValue(true))
+            ->willReturn(true)
         ;
         $container->expects($this->once())
             ->method('get')
             ->with(InvokableControllerService::class)
-            ->will($this->returnValue($service))
+            ->willReturn($service)
         ;
 
         $resolver = $this->createControllerResolver(null, $container);
@@ -124,52 +95,73 @@ class ContainerControllerResolverTest extends ControllerResolverTest
     }
 
     /**
-     * Tests where the fallback instantiation fails due to required constructor arguments.
-     *
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Controller "Symfony\Component\HttpKernel\Tests\Controller\ControllerTestService" cannot be fetched from the container because it is private. Did you forget to tag the service with "controller.service_arguments"?
+     * @dataProvider getControllers
      */
+    public function testInstantiateControllerWhenControllerStartsWithABackslash($controller)
+    {
+        $service = new ControllerTestService('foo');
+        $class = ControllerTestService::class;
+
+        $container = $this->createMockContainer();
+        $container->expects($this->once())->method('has')->with($class)->willReturn(true);
+        $container->expects($this->once())->method('get')->with($class)->willReturn($service);
+
+        $resolver = $this->createControllerResolver(null, $container);
+        $request = Request::create('/');
+        $request->attributes->set('_controller', $controller);
+
+        $controller = $resolver->getController($request);
+
+        $this->assertInstanceOf(ControllerTestService::class, $controller[0]);
+        $this->assertSame('action', $controller[1]);
+    }
+
+    public static function getControllers()
+    {
+        return [
+            ['\\'.ControllerTestService::class.'::action'],
+        ];
+    }
+
     public function testExceptionWhenUsingRemovedControllerServiceWithClassNameAsName()
     {
-        $container = $this->getMockBuilder(Container::class)->getMock();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Controller "Symfony\Component\HttpKernel\Tests\Controller\ControllerTestService" cannot be fetched from the container because it is private. Did you forget to tag the service with "controller.service_arguments"?');
+        $container = $this->createMock(Container::class);
         $container->expects($this->once())
             ->method('has')
             ->with(ControllerTestService::class)
-            ->will($this->returnValue(false))
+            ->willReturn(false)
         ;
 
         $container->expects($this->atLeastOnce())
             ->method('getRemovedIds')
             ->with()
-            ->will($this->returnValue(array(ControllerTestService::class => true)))
+            ->willReturn([ControllerTestService::class => true])
         ;
 
         $resolver = $this->createControllerResolver(null, $container);
         $request = Request::create('/');
-        $request->attributes->set('_controller', array(ControllerTestService::class, 'action'));
+        $request->attributes->set('_controller', [ControllerTestService::class, 'action']);
 
         $resolver->getController($request);
     }
 
-    /**
-     * Tests where the fallback instantiation fails due to non-existing class.
-     *
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Controller "app.my_controller" cannot be fetched from the container because it is private. Did you forget to tag the service with "controller.service_arguments"?
-     */
     public function testExceptionWhenUsingRemovedControllerService()
     {
-        $container = $this->getMockBuilder(Container::class)->getMock();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Controller "app.my_controller" cannot be fetched from the container because it is private. Did you forget to tag the service with "controller.service_arguments"?');
+        $container = $this->createMock(Container::class);
         $container->expects($this->once())
             ->method('has')
             ->with('app.my_controller')
-            ->will($this->returnValue(false))
+            ->willReturn(false)
         ;
 
         $container->expects($this->atLeastOnce())
             ->method('getRemovedIds')
             ->with()
-            ->will($this->returnValue(array('app.my_controller' => true)))
+            ->willReturn(['app.my_controller' => true])
         ;
 
         $resolver = $this->createControllerResolver(null, $container);
@@ -179,26 +171,26 @@ class ContainerControllerResolverTest extends ControllerResolverTest
         $resolver->getController($request);
     }
 
-    public function getUndefinedControllers()
+    public static function getUndefinedControllers(): array
     {
         $tests = parent::getUndefinedControllers();
-        $tests[0] = array('foo', \InvalidArgumentException::class, 'Controller "foo" does neither exist as service nor as class');
-        $tests[1] = array('oof::bar', \InvalidArgumentException::class, 'Controller "oof" does neither exist as service nor as class');
-        $tests[2] = array(array('oof', 'bar'), \InvalidArgumentException::class, 'Controller "oof" does neither exist as service nor as class');
-        $tests[] = array(
-            array(ControllerTestService::class, 'action'),
+        $tests[0] = ['foo', \InvalidArgumentException::class, 'Controller "foo" does neither exist as service nor as class'];
+        $tests[1] = ['oof::bar', \InvalidArgumentException::class, 'Controller "oof" does neither exist as service nor as class'];
+        $tests[2] = [['oof', 'bar'], \InvalidArgumentException::class, 'Controller "oof" does neither exist as service nor as class'];
+        $tests[] = [
+            [ControllerTestService::class, 'action'],
             \InvalidArgumentException::class,
-            'Controller "Symfony\Component\HttpKernel\Tests\Controller\ControllerTestService" has required constructor arguments and does not exist in the container. Did you forget to define such a service?',
-        );
-        $tests[] = array(
+            'Controller "Symfony\Component\HttpKernel\Tests\Controller\ControllerTestService" has required constructor arguments and does not exist in the container. Did you forget to define the controller as a service?',
+        ];
+        $tests[] = [
             ControllerTestService::class.'::action',
-            \InvalidArgumentException::class, 'Controller "Symfony\Component\HttpKernel\Tests\Controller\ControllerTestService" has required constructor arguments and does not exist in the container. Did you forget to define such a service?',
-        );
-        $tests[] = array(
+            \InvalidArgumentException::class, 'Controller "Symfony\Component\HttpKernel\Tests\Controller\ControllerTestService" has required constructor arguments and does not exist in the container. Did you forget to define the controller as a service?',
+        ];
+        $tests[] = [
             InvokableControllerService::class,
             \InvalidArgumentException::class,
-            'Controller "Symfony\Component\HttpKernel\Tests\Controller\InvokableControllerService" has required constructor arguments and does not exist in the container. Did you forget to define such a service?',
-        );
+            'Controller "Symfony\Component\HttpKernel\Tests\Controller\InvokableControllerService" has required constructor arguments and does not exist in the container. Did you forget to define the controller as a service?',
+        ];
 
         return $tests;
     }
@@ -214,7 +206,7 @@ class ContainerControllerResolverTest extends ControllerResolverTest
 
     protected function createMockContainer()
     {
-        return $this->getMockBuilder(ContainerInterface::class)->getMock();
+        return $this->createMock(ContainerInterface::class);
     }
 }
 

@@ -22,9 +22,9 @@ class FormValidatorPerformanceTest extends FormPerformanceTestCase
 {
     protected function getExtensions()
     {
-        return array(
-            new ValidatorExtension(Validation::createValidator()),
-        );
+        return [
+            new ValidatorExtension(Validation::createValidator(), false),
+        ];
     }
 
     /**

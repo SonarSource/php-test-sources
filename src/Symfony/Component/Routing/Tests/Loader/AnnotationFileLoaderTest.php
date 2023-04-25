@@ -15,12 +15,12 @@ use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\Loader\AnnotationFileLoader;
 
-class AnnotationFileLoaderTest extends AbstractAnnotationLoaderTest
+class AnnotationFileLoaderTest extends AbstractAnnotationLoaderTestCase
 {
     protected $loader;
     protected $reader;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -42,34 +42,37 @@ class AnnotationFileLoaderTest extends AbstractAnnotationLoaderTest
         $this->loader->load(__DIR__.'/../Fixtures/AnnotatedClasses/FooTrait.php');
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Did you forgot to add the "<?php" start tag at the beginning of the file?
-     */
     public function testLoadFileWithoutStartTag()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Did you forgot to add the "<?php" start tag at the beginning of the file?');
         $this->loader->load(__DIR__.'/../Fixtures/OtherAnnotatedClasses/NoStartTagClass.php');
     }
 
     public function testLoadVariadic()
     {
-        $route = new Route(array('path' => '/path/to/{id}'));
+        $route = new Route('/path/to/{id}');
         $this->reader->expects($this->once())->method('getClassAnnotation');
         $this->reader->expects($this->once())->method('getMethodAnnotations')
-            ->will($this->returnValue(array($route)));
+            ->willReturn([$route]);
 
         $this->loader->load(__DIR__.'/../Fixtures/OtherAnnotatedClasses/VariadicClass.php');
     }
 
-    /**
-     * @requires PHP 7.0
-     */
     public function testLoadAnonymousClass()
     {
         $this->reader->expects($this->never())->method('getClassAnnotation');
         $this->reader->expects($this->never())->method('getMethodAnnotations');
 
         $this->loader->load(__DIR__.'/../Fixtures/OtherAnnotatedClasses/AnonymousClassInTrait.php');
+    }
+
+    public function testLoadAbstractClass()
+    {
+        $this->reader->expects($this->never())->method('getClassAnnotation');
+        $this->reader->expects($this->never())->method('getMethodAnnotations');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AnnotatedClasses/AbstractClass.php');
     }
 
     public function testSupports()
@@ -80,6 +83,63 @@ class AnnotationFileLoaderTest extends AbstractAnnotationLoaderTest
         $this->assertFalse($this->loader->supports('foo.foo'), '->supports() returns true if the resource is loadable');
 
         $this->assertTrue($this->loader->supports($fixture, 'annotation'), '->supports() checks the resource type if specified');
+        $this->assertTrue($this->loader->supports($fixture, 'attribute'), '->supports() checks the resource type if specified');
         $this->assertFalse($this->loader->supports($fixture, 'foo'), '->supports() checks the resource type if specified');
+    }
+
+    public function testLoadAttributesClassAfterComma()
+    {
+        $this->reader->expects($this->once())->method('getClassAnnotation');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AttributesFixtures/AttributesClassParamAfterCommaController.php');
+    }
+
+    public function testLoadAttributesInlineClassAfterComma()
+    {
+        $this->reader->expects($this->once())->method('getClassAnnotation');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AttributesFixtures/AttributesClassParamInlineAfterCommaController.php');
+    }
+
+    public function testLoadAttributesQuotedClassAfterComma()
+    {
+        $this->reader->expects($this->once())->method('getClassAnnotation');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AttributesFixtures/AttributesClassParamQuotedAfterCommaController.php');
+    }
+
+    public function testLoadAttributesInlineQuotedClassAfterComma()
+    {
+        $this->reader->expects($this->once())->method('getClassAnnotation');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AttributesFixtures/AttributesClassParamInlineQuotedAfterCommaController.php');
+    }
+
+    public function testLoadAttributesClassAfterParenthesis()
+    {
+        $this->reader->expects($this->once())->method('getClassAnnotation');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AttributesFixtures/AttributesClassParamAfterParenthesisController.php');
+    }
+
+    public function testLoadAttributesInlineClassAfterParenthesis()
+    {
+        $this->reader->expects($this->once())->method('getClassAnnotation');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AttributesFixtures/AttributesClassParamInlineAfterParenthesisController.php');
+    }
+
+    public function testLoadAttributesQuotedClassAfterParenthesis()
+    {
+        $this->reader->expects($this->once())->method('getClassAnnotation');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AttributesFixtures/AttributesClassParamQuotedAfterParenthesisController.php');
+    }
+
+    public function testLoadAttributesInlineQuotedClassAfterParenthesis()
+    {
+        $this->reader->expects($this->once())->method('getClassAnnotation');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AttributesFixtures/AttributesClassParamInlineQuotedAfterParenthesisController.php');
     }
 }

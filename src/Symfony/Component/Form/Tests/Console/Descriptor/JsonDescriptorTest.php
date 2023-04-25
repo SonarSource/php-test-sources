@@ -13,18 +13,8 @@ namespace Symfony\Component\Form\Tests\Console\Descriptor;
 
 use Symfony\Component\Form\Console\Descriptor\JsonDescriptor;
 
-class JsonDescriptorTest extends AbstractDescriptorTest
+class JsonDescriptorTest extends AbstractDescriptorTestCase
 {
-    protected function setUp()
-    {
-        putenv('COLUMNS=121');
-    }
-
-    protected function tearDown()
-    {
-        putenv('COLUMNS');
-    }
-
     protected function getDescriptor()
     {
         return new JsonDescriptor();

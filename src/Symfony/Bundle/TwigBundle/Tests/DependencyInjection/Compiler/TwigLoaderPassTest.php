@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\TwigBundle\DependencyInjection\Compiler\TwigLoaderPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Exception\LogicException;
 
 class TwigLoaderPassTest extends TestCase
 {
@@ -31,7 +32,7 @@ class TwigLoaderPassTest extends TestCase
      */
     private $pass;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->builder = new ContainerBuilder();
         $this->builder->register('twig');
@@ -72,9 +73,9 @@ class TwigLoaderPassTest extends TestCase
     {
         $this->builder->setDefinition('twig.loader.chain', $this->chainLoader);
         $this->builder->register('test_loader_1')
-            ->addTag('twig.loader', array('priority' => 100));
+            ->addTag('twig.loader', ['priority' => 100]);
         $this->builder->register('test_loader_2')
-            ->addTag('twig.loader', array('priority' => 200));
+            ->addTag('twig.loader', ['priority' => 200]);
 
         $this->pass->process($this->builder);
 
@@ -87,11 +88,9 @@ class TwigLoaderPassTest extends TestCase
         $this->assertEquals('test_loader_1', (string) $calls[1][1][0]);
     }
 
-    /**
-     * @expectedException \Symfony\Component\DependencyInjection\Exception\LogicException
-     */
     public function testMapperPassWithZeroTaggedLoaders()
     {
+        $this->expectException(LogicException::class);
         $this->pass->process($this->builder);
     }
 }

@@ -22,21 +22,18 @@ use Symfony\Component\Validator\ConstraintViolationInterface;
  */
 class FormDataExtractor implements FormDataExtractorInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function extractConfiguration(FormInterface $form)
+    public function extractConfiguration(FormInterface $form): array
     {
-        $data = array(
+        $data = [
             'id' => $this->buildId($form),
             'name' => $form->getName(),
-            'type_class' => \get_class($form->getConfig()->getType()->getInnerType()),
+            'type_class' => $form->getConfig()->getType()->getInnerType()::class,
             'synchronized' => $form->isSynchronized(),
-            'passed_options' => array(),
-            'resolved_options' => array(),
-        );
+            'passed_options' => [],
+            'resolved_options' => [],
+        ];
 
-        foreach ($form->getConfig()->getAttribute('data_collector/passed_options', array()) as $option => $value) {
+        foreach ($form->getConfig()->getAttribute('data_collector/passed_options', []) as $option => $value) {
             $data['passed_options'][$option] = $value;
         }
 
@@ -50,17 +47,14 @@ class FormDataExtractor implements FormDataExtractorInterface
         return $data;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function extractDefaultData(FormInterface $form)
+    public function extractDefaultData(FormInterface $form): array
     {
-        $data = array(
-            'default_data' => array(
+        $data = [
+            'default_data' => [
                 'norm' => $form->getNormData(),
-            ),
-            'submitted_data' => array(),
-        );
+            ],
+            'submitted_data' => [],
+        ];
 
         if ($form->getData() !== $form->getNormData()) {
             $data['default_data']['model'] = $form->getData();
@@ -73,17 +67,14 @@ class FormDataExtractor implements FormDataExtractorInterface
         return $data;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function extractSubmittedData(FormInterface $form)
+    public function extractSubmittedData(FormInterface $form): array
     {
-        $data = array(
-            'submitted_data' => array(
+        $data = [
+            'submitted_data' => [
                 'norm' => $form->getNormData(),
-            ),
-            'errors' => array(),
-        );
+            ],
+            'errors' => [],
+        ];
 
         if ($form->getViewData() !== $form->getNormData()) {
             $data['submitted_data']['view'] = $form->getViewData();
@@ -94,13 +85,13 @@ class FormDataExtractor implements FormDataExtractorInterface
         }
 
         foreach ($form->getErrors() as $error) {
-            $errorData = array(
+            $errorData = [
                 'message' => $error->getMessage(),
                 'origin' => \is_object($error->getOrigin())
                     ? spl_object_hash($error->getOrigin())
                     : null,
-                'trace' => array(),
-            );
+                'trace' => [],
+            ];
 
             $cause = $error->getCause();
 
@@ -132,16 +123,13 @@ class FormDataExtractor implements FormDataExtractorInterface
         return $data;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function extractViewVariables(FormView $view)
+    public function extractViewVariables(FormView $view): array
     {
-        $data = array(
-            'id' => isset($view->vars['id']) ? $view->vars['id'] : null,
-            'name' => isset($view->vars['name']) ? $view->vars['name'] : null,
-            'view_vars' => array(),
-        );
+        $data = [
+            'id' => $view->vars['id'] ?? null,
+            'name' => $view->vars['name'] ?? null,
+            'view_vars' => [],
+        ];
 
         foreach ($view->vars as $varName => $value) {
             $data['view_vars'][$varName] = $value;
@@ -154,10 +142,8 @@ class FormDataExtractor implements FormDataExtractorInterface
 
     /**
      * Recursively builds an HTML ID for a form.
-     *
-     * @return string The HTML ID
      */
-    private function buildId(FormInterface $form)
+    private function buildId(FormInterface $form): string
     {
         $id = $form->getName();
 

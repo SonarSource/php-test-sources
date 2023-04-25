@@ -22,6 +22,9 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 class LoggingTranslatorPass implements CompilerPassInterface
 {
+    /**
+     * @return void
+     */
     public function process(ContainerBuilder $container)
     {
         if (!$container->hasAlias('logger') || !$container->hasAlias('translator')) {
@@ -47,7 +50,7 @@ class LoggingTranslatorPass implements CompilerPassInterface
                         $warmer->addTag('container.service_subscriber', $v);
                     }
                 }
-                $warmer->addTag('container.service_subscriber', array('key' => 'translator', 'id' => 'translator.logging.inner'));
+                $warmer->addTag('container.service_subscriber', ['key' => 'translator', 'id' => 'translator.logging.inner']);
             }
         }
     }

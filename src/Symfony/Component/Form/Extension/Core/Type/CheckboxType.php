@@ -21,7 +21,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 class CheckboxType extends AbstractType
 {
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
@@ -31,44 +31,41 @@ class CheckboxType extends AbstractType
         // transformer handles this case).
         // We cannot solve this case via overriding the "data" option, because
         // doing so also calls setDataLocked(true).
-        $builder->setData(isset($options['data']) ? $options['data'] : false);
+        $builder->setData($options['data'] ?? false);
         $builder->addViewTransformer(new BooleanToStringTransformer($options['value'], $options['false_values']));
     }
 
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function buildView(FormView $view, FormInterface $form, array $options)
     {
-        $view->vars = array_replace($view->vars, array(
+        $view->vars = array_replace($view->vars, [
             'value' => $options['value'],
             'checked' => null !== $form->getViewData(),
-        ));
+        ]);
     }
 
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $emptyData = function (FormInterface $form, $viewData) {
-            return $viewData;
-        };
+        $emptyData = static fn (FormInterface $form, $viewData) => $viewData;
 
-        $resolver->setDefaults(array(
+        $resolver->setDefaults([
             'value' => '1',
             'empty_data' => $emptyData,
             'compound' => false,
-            'false_values' => array(null),
-        ));
+            'false_values' => [null],
+            'invalid_message' => 'The checkbox has an invalid value.',
+            'is_empty_callback' => static fn ($modelData): bool => false === $modelData,
+        ]);
 
         $resolver->setAllowedTypes('false_values', 'array');
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getBlockPrefix()
+    public function getBlockPrefix(): string
     {
         return 'checkbox';
     }

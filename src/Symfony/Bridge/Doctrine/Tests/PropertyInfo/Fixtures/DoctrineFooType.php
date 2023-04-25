@@ -20,49 +20,34 @@ use Doctrine\DBAL\Types\Type;
  */
 class DoctrineFooType extends Type
 {
-    /**
-     * Type name.
-     */
-    const NAME = 'foo';
+    private const NAME = 'foo';
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getName()
+    public function getName(): string
     {
         return self::NAME;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getSQLDeclaration(array $fieldDeclaration, AbstractPlatform $platform)
+    public function getSQLDeclaration(array $fieldDeclaration, AbstractPlatform $platform): string
     {
-        return $platform->getClobTypeDeclarationSQL(array());
+        return $platform->getClobTypeDeclarationSQL([]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function convertToDatabaseValue($value, AbstractPlatform $platform)
+    public function convertToDatabaseValue($value, AbstractPlatform $platform): mixed
     {
         if (null === $value) {
-            return;
+            return null;
         }
         if (!$value instanceof Foo) {
-            throw new ConversionException(sprintf('Expected %s, got %s', 'Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\Foo', \gettype($value)));
+            throw new ConversionException(sprintf('Expected "%s", got "%s"', 'Symfony\Bridge\Doctrine\Tests\PropertyInfo\Fixtures\Foo', get_debug_type($value)));
         }
 
         return $foo->bar;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function convertToPHPValue($value, AbstractPlatform $platform)
+    public function convertToPHPValue($value, AbstractPlatform $platform): mixed
     {
         if (null === $value) {
-            return;
+            return null;
         }
         if (!\is_string($value)) {
             throw ConversionException::conversionFailed($value, self::NAME);
@@ -74,10 +59,7 @@ class DoctrineFooType extends Type
         return $foo;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function requiresSQLCommentHint(AbstractPlatform $platform)
+    public function requiresSQLCommentHint(AbstractPlatform $platform): bool
     {
         return true;
     }

@@ -18,9 +18,9 @@ use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface
 
 class EntryPointStub implements AuthenticationEntryPointInterface
 {
-    const RESPONSE_TEXT = '2be8e651259189d841a19eecdf37e771e2431741';
+    public const RESPONSE_TEXT = '2be8e651259189d841a19eecdf37e771e2431741';
 
-    public function start(Request $request, AuthenticationException $authException = null)
+    public function start(Request $request, AuthenticationException $authException = null): Response
     {
         return new Response(self::RESPONSE_TEXT);
     }

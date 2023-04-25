@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\Exception\CannotWriteFileException;
 use Symfony\Component\HttpFoundation\File\Exception\ExtensionFileException;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
+use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\File\Exception\FormSizeFileException;
 use Symfony\Component\HttpFoundation\File\Exception\IniSizeFileException;
 use Symfony\Component\HttpFoundation\File\Exception\NoFileException;
@@ -24,16 +25,16 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class UploadedFileTest extends TestCase
 {
-    protected function setUp()
+    protected function setUp(): void
     {
-        if (!ini_get('file_uploads')) {
+        if (!\ini_get('file_uploads')) {
             $this->markTestSkipped('file_uploads is disabled in php.ini');
         }
     }
 
     public function testConstructWhenFileNotExists()
     {
-        $this->{method_exists($this, $_ = 'expectException') ? $_ : 'setExpectedException'}('Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException');
+        $this->expectException(FileNotFoundException::class);
 
         new UploadedFile(
             __DIR__.'/Fixtures/not_here',
@@ -48,7 +49,7 @@ class UploadedFileTest extends TestCase
             __DIR__.'/Fixtures/test.gif',
             'original.gif',
             null,
-            UPLOAD_ERR_OK
+            \UPLOAD_ERR_OK
         );
 
         $this->assertEquals('application/octet-stream', $file->getClientMimeType());
@@ -64,7 +65,7 @@ class UploadedFileTest extends TestCase
             __DIR__.'/Fixtures/.unknownextension',
             'original.gif',
             null,
-            UPLOAD_ERR_OK
+            \UPLOAD_ERR_OK
         );
 
         $this->assertEquals('application/octet-stream', $file->getClientMimeType());
@@ -87,11 +88,23 @@ class UploadedFileTest extends TestCase
         $file = new UploadedFile(
             __DIR__.'/Fixtures/test.gif',
             'original.gif',
-            'image/jpeg',
+            'image/png',
             null
         );
 
-        $this->assertEquals('jpeg', $file->guessClientExtension());
+        $this->assertEquals('png', $file->guessClientExtension());
+    }
+
+    public function testCaseSensitiveMimeType()
+    {
+        $file = new UploadedFile(
+            __DIR__.'/Fixtures/case-sensitive-mime-type.xlsm',
+            'test.xlsm',
+            'application/vnd.ms-excel.sheet.macroEnabled.12',
+            null
+        );
+
+        $this->assertEquals('xlsm', $file->guessClientExtension());
     }
 
     public function testErrorIsOkByDefault()
@@ -103,7 +116,7 @@ class UploadedFileTest extends TestCase
             null
         );
 
-        $this->assertEquals(UPLOAD_ERR_OK, $file->getError());
+        $this->assertEquals(\UPLOAD_ERR_OK, $file->getError());
     }
 
     public function testGetClientOriginalName()
@@ -130,30 +143,28 @@ class UploadedFileTest extends TestCase
         $this->assertEquals('gif', $file->getClientOriginalExtension());
     }
 
-    /**
-     * @expectedException \Symfony\Component\HttpFoundation\File\Exception\FileException
-     */
     public function testMoveLocalFileIsNotAllowed()
     {
+        $this->expectException(FileException::class);
         $file = new UploadedFile(
             __DIR__.'/Fixtures/test.gif',
             'original.gif',
             'image/gif',
-            UPLOAD_ERR_OK
+            \UPLOAD_ERR_OK
         );
 
-        $movedFile = $file->move(__DIR__.'/Fixtures/directory');
+        $file->move(__DIR__.'/Fixtures/directory');
     }
 
-    public function failedUploadedFile()
+    public static function failedUploadedFile()
     {
-        foreach (array(UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE, UPLOAD_ERR_PARTIAL, UPLOAD_ERR_NO_FILE, UPLOAD_ERR_CANT_WRITE, UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_EXTENSION, -1) as $error) {
-            yield array(new UploadedFile(
+        foreach ([\UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE, \UPLOAD_ERR_PARTIAL, \UPLOAD_ERR_NO_FILE, \UPLOAD_ERR_CANT_WRITE, \UPLOAD_ERR_NO_TMP_DIR, \UPLOAD_ERR_EXTENSION, -1] as $error) {
+            yield [new UploadedFile(
                 __DIR__.'/Fixtures/test.gif',
                 'original.gif',
                 'image/gif',
                 $error
-            ));
+            )];
         }
     }
 
@@ -162,31 +173,16 @@ class UploadedFileTest extends TestCase
      */
     public function testMoveFailed(UploadedFile $file)
     {
-        switch ($file->getError()) {
-            case UPLOAD_ERR_INI_SIZE:
-                $exceptionClass = IniSizeFileException::class;
-                break;
-            case UPLOAD_ERR_FORM_SIZE:
-                $exceptionClass = FormSizeFileException::class;
-                break;
-            case UPLOAD_ERR_PARTIAL:
-                $exceptionClass = PartialFileException::class;
-                break;
-            case UPLOAD_ERR_NO_FILE:
-                $exceptionClass = NoFileException::class;
-                break;
-            case UPLOAD_ERR_CANT_WRITE:
-                $exceptionClass = CannotWriteFileException::class;
-                break;
-            case UPLOAD_ERR_NO_TMP_DIR:
-                $exceptionClass = NoTmpDirFileException::class;
-                break;
-            case UPLOAD_ERR_EXTENSION:
-                $exceptionClass = ExtensionFileException::class;
-                break;
-            default:
-                $exceptionClass = FileException::class;
-        }
+        $exceptionClass = match ($file->getError()) {
+            \UPLOAD_ERR_INI_SIZE => IniSizeFileException::class,
+            \UPLOAD_ERR_FORM_SIZE => FormSizeFileException::class,
+            \UPLOAD_ERR_PARTIAL => PartialFileException::class,
+            \UPLOAD_ERR_NO_FILE => NoFileException::class,
+            \UPLOAD_ERR_CANT_WRITE => CannotWriteFileException::class,
+            \UPLOAD_ERR_NO_TMP_DIR => NoTmpDirFileException::class,
+            \UPLOAD_ERR_EXTENSION => ExtensionFileException::class,
+            default => FileException::class,
+        };
 
         $this->expectException($exceptionClass);
 
@@ -206,14 +202,14 @@ class UploadedFileTest extends TestCase
             $path,
             'original.gif',
             'image/gif',
-            UPLOAD_ERR_OK,
+            \UPLOAD_ERR_OK,
             true
         );
 
         $movedFile = $file->move(__DIR__.'/Fixtures/directory');
 
         $this->assertFileExists($targetPath);
-        $this->assertFileNotExists($path);
+        $this->assertFileDoesNotExist($path);
         $this->assertEquals(realpath($targetPath), $movedFile->getRealPath());
 
         @unlink($targetPath);
@@ -249,40 +245,6 @@ class UploadedFileTest extends TestCase
         $this->assertEquals(filesize(__DIR__.'/Fixtures/test'), $file->getSize());
     }
 
-    /**
-     * @group legacy
-     * @expectedDeprecation Passing a size as 4th argument to the constructor of "Symfony\Component\HttpFoundation\File\UploadedFile" is deprecated since Symfony 4.1.
-     */
-    public function testConstructDeprecatedSize()
-    {
-        $file = new UploadedFile(
-            __DIR__.'/Fixtures/test.gif',
-            'original.gif',
-            'image/gif',
-            filesize(__DIR__.'/Fixtures/test.gif'),
-            UPLOAD_ERR_OK,
-            false
-        );
-
-        $this->assertEquals(filesize(__DIR__.'/Fixtures/test.gif'), $file->getSize());
-    }
-
-    /**
-     * @group legacy
-     * @expectedDeprecation Passing a size as 4th argument to the constructor of "Symfony\Component\HttpFoundation\File\UploadedFile" is deprecated since Symfony 4.1.
-     */
-    public function testConstructDeprecatedSizeWhenPassingOnlyThe4Needed()
-    {
-        $file = new UploadedFile(
-            __DIR__.'/Fixtures/test.gif',
-            'original.gif',
-            'image/gif',
-            filesize(__DIR__.'/Fixtures/test.gif')
-        );
-
-        $this->assertEquals(filesize(__DIR__.'/Fixtures/test.gif'), $file->getSize());
-    }
-
     public function testGetExtension()
     {
         $file = new UploadedFile(
@@ -299,7 +261,7 @@ class UploadedFileTest extends TestCase
             __DIR__.'/Fixtures/test.gif',
             'original.gif',
             null,
-            UPLOAD_ERR_OK,
+            \UPLOAD_ERR_OK,
             true
         );
 
@@ -321,15 +283,15 @@ class UploadedFileTest extends TestCase
         $this->assertFalse($file->isValid());
     }
 
-    public function uploadedFileErrorProvider()
+    public static function uploadedFileErrorProvider()
     {
-        return array(
-            array(UPLOAD_ERR_INI_SIZE),
-            array(UPLOAD_ERR_FORM_SIZE),
-            array(UPLOAD_ERR_PARTIAL),
-            array(UPLOAD_ERR_NO_TMP_DIR),
-            array(UPLOAD_ERR_EXTENSION),
-        );
+        return [
+            [\UPLOAD_ERR_INI_SIZE],
+            [\UPLOAD_ERR_FORM_SIZE],
+            [\UPLOAD_ERR_PARTIAL],
+            [\UPLOAD_ERR_NO_TMP_DIR],
+            [\UPLOAD_ERR_EXTENSION],
+        ];
     }
 
     public function testIsInvalidIfNotHttpUpload()
@@ -338,9 +300,26 @@ class UploadedFileTest extends TestCase
             __DIR__.'/Fixtures/test.gif',
             'original.gif',
             null,
-            UPLOAD_ERR_OK
+            \UPLOAD_ERR_OK
         );
 
         $this->assertFalse($file->isValid());
+    }
+
+    public function testGetMaxFilesize()
+    {
+        $size = UploadedFile::getMaxFilesize();
+
+        if ($size > \PHP_INT_MAX) {
+            $this->assertIsFloat($size);
+        } else {
+            $this->assertIsInt($size);
+        }
+
+        $this->assertGreaterThan(0, $size);
+
+        if (0 === (int) \ini_get('post_max_size') && 0 === (int) \ini_get('upload_max_filesize')) {
+            $this->assertSame(\PHP_INT_MAX, $size);
+        }
     }
 }

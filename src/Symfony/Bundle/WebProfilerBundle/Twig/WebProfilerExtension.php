@@ -22,6 +22,8 @@ use Twig\TwigFunction;
  * Twig extension for the profiler.
  *
  * @author Fabien Potencier <fabien@symfony.com>
+ *
+ * @internal
  */
 class WebProfilerExtension extends ProfilerExtension
 {
@@ -42,39 +44,36 @@ class WebProfilerExtension extends ProfilerExtension
 
     public function __construct(HtmlDumper $dumper = null)
     {
-        $this->dumper = $dumper ?: new HtmlDumper();
-        $this->dumper->setOutput($this->output = fopen('php://memory', 'r+b'));
+        $this->dumper = $dumper ?? new HtmlDumper();
+        $this->dumper->setOutput($this->output = fopen('php://memory', 'r+'));
     }
 
-    public function enter(Profile $profile)
+    public function enter(Profile $profile): void
     {
         ++$this->stackLevel;
     }
 
-    public function leave(Profile $profile)
+    public function leave(Profile $profile): void
     {
         if (0 === --$this->stackLevel) {
-            $this->dumper->setOutput($this->output = fopen('php://memory', 'r+b'));
+            $this->dumper->setOutput($this->output = fopen('php://memory', 'r+'));
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getFunctions()
+    public function getFunctions(): array
     {
-        return array(
-            new TwigFunction('profiler_dump', array($this, 'dumpData'), array('is_safe' => array('html'), 'needs_environment' => true)),
-            new TwigFunction('profiler_dump_log', array($this, 'dumpLog'), array('is_safe' => array('html'), 'needs_environment' => true)),
-        );
+        return [
+            new TwigFunction('profiler_dump', $this->dumpData(...), ['is_safe' => ['html'], 'needs_environment' => true]),
+            new TwigFunction('profiler_dump_log', $this->dumpLog(...), ['is_safe' => ['html'], 'needs_environment' => true]),
+        ];
     }
 
-    public function dumpData(Environment $env, Data $data, $maxDepth = 0)
+    public function dumpData(Environment $env, Data $data, int $maxDepth = 0): string
     {
         $this->dumper->setCharset($env->getCharset());
-        $this->dumper->dump($data, null, array(
+        $this->dumper->dump($data, null, [
             'maxDepth' => $maxDepth,
-        ));
+        ]);
 
         $dump = stream_get_contents($this->output, -1, 0);
         rewind($this->output);
@@ -83,28 +82,31 @@ class WebProfilerExtension extends ProfilerExtension
         return str_replace("\n</pre", '</pre', rtrim($dump));
     }
 
-    public function dumpLog(Environment $env, $message, Data $context = null)
+    public function dumpLog(Environment $env, string $message, Data $context = null): string
     {
         $message = twig_escape_filter($env, $message);
         $message = preg_replace('/&quot;(.*?)&quot;/', '&quot;<b>$1</b>&quot;', $message);
 
-        if (null === $context || false === strpos($message, '{')) {
+        $replacements = [];
+        foreach ($context ?? [] as $k => $v) {
+            $k = '{'.twig_escape_filter($env, $k).'}';
+            if (str_contains($message, $k)) {
+                $replacements[$k] = $v;
+            }
+        }
+
+        if (!$replacements) {
             return '<span class="dump-inline">'.$message.'</span>';
         }
 
-        $replacements = array();
-        foreach ($context as $k => $v) {
-            $k = '{'.twig_escape_filter($env, $k).'}';
+        foreach ($replacements as $k => $v) {
             $replacements['&quot;<b>'.$k.'</b>&quot;'] = $replacements['&quot;'.$k.'&quot;'] = $replacements[$k] = $this->dumpData($env, $v);
         }
 
         return '<span class="dump-inline">'.strtr($message, $replacements).'</span>';
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getName()
+    public function getName(): string
     {
         return 'profiler';
     }

@@ -15,6 +15,7 @@ use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\TwigBundle\Tests\TestCase;
 use Symfony\Bundle\TwigBundle\TwigBundle;
 use Symfony\Component\Config\Loader\LoaderInterface;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpKernel\Kernel;
 
@@ -26,16 +27,16 @@ class NoTemplatingEntryTest extends TestCase
         $kernel->boot();
 
         $container = $kernel->getContainer();
-        $content = $container->get('twig')->render('index.html.twig');
-        $this->assertContains('{ a: b }', $content);
+        $content = $container->get('twig.alias')->render('index.html.twig');
+        $this->assertStringContainsString('{ a: b }', $content);
     }
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->deleteTempDir();
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         $this->deleteTempDir();
     }
@@ -53,33 +54,34 @@ class NoTemplatingEntryTest extends TestCase
 
 class NoTemplatingEntryKernel extends Kernel
 {
-    public function registerBundles()
+    public function registerBundles(): iterable
     {
-        return array(new FrameworkBundle(), new TwigBundle());
+        return [new FrameworkBundle(), new TwigBundle()];
     }
 
-    public function registerContainerConfiguration(LoaderInterface $loader)
+    public function registerContainerConfiguration(LoaderInterface $loader): void
     {
-        $loader->load(function ($container) {
+        $loader->load(function (ContainerBuilder $container) {
             $container
-                ->loadFromExtension('framework', array(
+                ->loadFromExtension('framework', [
+                    'http_method_override' => false,
                     'secret' => '$ecret',
-                    'form' => array('enabled' => false),
-                ))
-                ->loadFromExtension('twig', array(
-                    'strict_variables' => false, // to be removed in 5.0 relying on default
+                    'form' => ['enabled' => false],
+                ])
+                ->loadFromExtension('twig', [
                     'default_path' => __DIR__.'/templates',
-                ))
+                ])
+                ->setAlias('twig.alias', 'twig')->setPublic(true)
             ;
         });
     }
 
-    public function getCacheDir()
+    public function getCacheDir(): string
     {
         return sys_get_temp_dir().'/'.Kernel::VERSION.'/NoTemplatingEntryKernel/cache/'.$this->environment;
     }
 
-    public function getLogDir()
+    public function getLogDir(): string
     {
         return sys_get_temp_dir().'/'.Kernel::VERSION.'/NoTemplatingEntryKernel/logs';
     }

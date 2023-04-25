@@ -18,22 +18,16 @@ class ChoiceTypeExtension extends AbstractTypeExtension
 {
     public static $extendedType;
 
-    /**
-     * {@inheritdoc}
-     */
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $resolver): void
     {
-        $resolver->setDefault('choices', array(
+        $resolver->setDefault('choices', [
             'A' => 'a',
             'B' => 'b',
-        ));
+        ]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public static function getExtendedTypes(): iterable
     {
-        return array(self::$extendedType);
+        return [self::$extendedType];
     }
 }

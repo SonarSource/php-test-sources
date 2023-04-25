@@ -1,7 +1,8 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'validation' => array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'validation' => [
         'translation_domain' => 'messages',
-    ),
-));
+    ],
+]);

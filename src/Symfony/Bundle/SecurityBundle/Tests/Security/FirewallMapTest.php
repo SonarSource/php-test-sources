@@ -19,24 +19,23 @@ use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestMatcherInterface;
 use Symfony\Component\Security\Http\Firewall\ExceptionListener;
-use Symfony\Component\Security\Http\Firewall\ListenerInterface;
 use Symfony\Component\Security\Http\Firewall\LogoutListener;
 
 class FirewallMapTest extends TestCase
 {
-    const ATTRIBUTE_FIREWALL_CONTEXT = '_firewall_context';
+    private const ATTRIBUTE_FIREWALL_CONTEXT = '_firewall_context';
 
     public function testGetListenersWithEmptyMap()
     {
         $request = new Request();
 
-        $map = array();
-        $container = $this->getMockBuilder(Container::class)->getMock();
+        $map = [];
+        $container = $this->createMock(Container::class);
         $container->expects($this->never())->method('get');
 
         $firewallMap = new FirewallMap($container, $map);
 
-        $this->assertEquals(array(array(), null, null), $firewallMap->getListeners($request));
+        $this->assertEquals([[], null, null], $firewallMap->getListeners($request));
         $this->assertNull($firewallMap->getFirewallConfig($request));
         $this->assertFalse($request->attributes->has(self::ATTRIBUTE_FIREWALL_CONTEXT));
     }
@@ -46,48 +45,56 @@ class FirewallMapTest extends TestCase
         $request = new Request();
         $request->attributes->set(self::ATTRIBUTE_FIREWALL_CONTEXT, 'foo');
 
-        $map = array();
-        $container = $this->getMockBuilder(Container::class)->getMock();
+        $map = [];
+        $container = $this->createMock(Container::class);
         $container->expects($this->never())->method('get');
 
         $firewallMap = new FirewallMap($container, $map);
 
-        $this->assertEquals(array(array(), null, null), $firewallMap->getListeners($request));
+        $this->assertEquals([[], null, null], $firewallMap->getListeners($request));
         $this->assertNull($firewallMap->getFirewallConfig($request));
         $this->assertFalse($request->attributes->has(self::ATTRIBUTE_FIREWALL_CONTEXT));
+        $this->assertFalse($request->attributes->has('_stateless'));
     }
 
-    public function testGetListeners()
+    /** @dataProvider providesStatefulStatelessRequests */
+    public function testGetListeners(Request $request, bool $expectedState)
     {
-        $request = new Request();
+        $firewallContext = $this->createMock(FirewallContext::class);
 
-        $firewallContext = $this->getMockBuilder(FirewallContext::class)->disableOriginalConstructor()->getMock();
+        $firewallConfig = new FirewallConfig('main', 'user_checker', null, true, true);
+        $firewallContext->expects($this->exactly(2))->method('getConfig')->willReturn($firewallConfig);
 
-        $firewallConfig = new FirewallConfig('main', 'user_checker');
-        $firewallContext->expects($this->once())->method('getConfig')->willReturn($firewallConfig);
+        $listener = function () {};
+        $firewallContext->expects($this->once())->method('getListeners')->willReturn([$listener]);
 
-        $listener = $this->getMockBuilder(ListenerInterface::class)->getMock();
-        $firewallContext->expects($this->once())->method('getListeners')->willReturn(array($listener));
-
-        $exceptionListener = $this->getMockBuilder(ExceptionListener::class)->disableOriginalConstructor()->getMock();
+        $exceptionListener = $this->createMock(ExceptionListener::class);
         $firewallContext->expects($this->once())->method('getExceptionListener')->willReturn($exceptionListener);
 
-        $logoutListener = $this->getMockBuilder(LogoutListener::class)->disableOriginalConstructor()->getMock();
+        $logoutListener = $this->createMock(LogoutListener::class);
         $firewallContext->expects($this->once())->method('getLogoutListener')->willReturn($logoutListener);
 
-        $matcher = $this->getMockBuilder(RequestMatcherInterface::class)->getMock();
+        $matcher = $this->createMock(RequestMatcherInterface::class);
         $matcher->expects($this->once())
             ->method('matches')
             ->with($request)
             ->willReturn(true);
 
-        $container = $this->getMockBuilder(Container::class)->getMock();
+        $container = $this->createMock(Container::class);
         $container->expects($this->exactly(2))->method('get')->willReturn($firewallContext);
 
-        $firewallMap = new FirewallMap($container, array('security.firewall.map.context.foo' => $matcher));
+        $firewallMap = new FirewallMap($container, ['security.firewall.map.context.foo' => $matcher]);
 
-        $this->assertEquals(array(array($listener), $exceptionListener, $logoutListener), $firewallMap->getListeners($request));
+        $this->assertEquals([[$listener], $exceptionListener, $logoutListener], $firewallMap->getListeners($request));
         $this->assertEquals($firewallConfig, $firewallMap->getFirewallConfig($request));
         $this->assertEquals('security.firewall.map.context.foo', $request->attributes->get(self::ATTRIBUTE_FIREWALL_CONTEXT));
+        $this->assertEquals($expectedState, $request->attributes->get('_stateless'));
+    }
+
+    public static function providesStatefulStatelessRequests(): \Generator
+    {
+        yield [new Request(), true];
+        yield [new Request(attributes: ['_stateless' => false]), false];
+        yield [new Request(attributes: ['_stateless' => true]), true];
     }
 }

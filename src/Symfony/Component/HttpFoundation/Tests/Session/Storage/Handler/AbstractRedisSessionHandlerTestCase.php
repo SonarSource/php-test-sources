@@ -12,10 +12,12 @@
 namespace Symfony\Component\HttpFoundation\Tests\Session\Storage\Handler;
 
 use PHPUnit\Framework\TestCase;
+use Relay\Relay;
 use Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler;
 
 /**
  * @requires extension redis
+ *
  * @group time-sensitive
  */
 abstract class AbstractRedisSessionHandlerTestCase extends TestCase
@@ -32,17 +34,19 @@ abstract class AbstractRedisSessionHandlerTestCase extends TestCase
      */
     protected $redisClient;
 
-    /**
-     * @return \Redis|\RedisArray|\RedisCluster|\Predis\Client
-     */
-    abstract protected function createRedisClient(string $host);
+    abstract protected function createRedisClient(string $host): \Redis|Relay|\RedisArray|\RedisCluster|\Predis\Client;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
         if (!\extension_loaded('redis')) {
             self::markTestSkipped('Extension redis required.');
+        }
+        try {
+            (new \Redis())->connect(...explode(':', getenv('REDIS_HOST')));
+        } catch (\Exception $e) {
+            self::markTestSkipped($e->getMessage());
         }
 
         $host = getenv('REDIS_HOST') ?: 'localhost';
@@ -50,11 +54,11 @@ abstract class AbstractRedisSessionHandlerTestCase extends TestCase
         $this->redisClient = $this->createRedisClient($host);
         $this->storage = new RedisSessionHandler(
             $this->redisClient,
-            array('prefix' => self::PREFIX)
+            ['prefix' => self::PREFIX]
         );
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         $this->redisClient = null;
         $this->storage = null;
@@ -94,7 +98,7 @@ abstract class AbstractRedisSessionHandlerTestCase extends TestCase
         $this->storage->write('id', 'data');
         $ttl = $this->redisClient->ttl(self::PREFIX.'id');
 
-        $this->assertLessThanOrEqual(ini_get('session.gc_maxlifetime'), $ttl);
+        $this->assertLessThanOrEqual(\ini_get('session.gc_maxlifetime'), $ttl);
         $this->assertGreaterThanOrEqual(0, $ttl);
     }
 
@@ -109,7 +113,7 @@ abstract class AbstractRedisSessionHandlerTestCase extends TestCase
 
     public function testGcSession()
     {
-        $this->assertTrue($this->storage->gc(123));
+        $this->assertIsInt($this->storage->gc(123));
     }
 
     public function testUpdateTimestamp()
@@ -117,7 +121,7 @@ abstract class AbstractRedisSessionHandlerTestCase extends TestCase
         $lowTtl = 10;
 
         $this->redisClient->setex(self::PREFIX.'id', $lowTtl, 'foo');
-        $this->storage->updateTimestamp('id', array());
+        $this->storage->updateTimestamp('id', 'data');
 
         $this->assertGreaterThan($lowTtl, $this->redisClient->ttl(self::PREFIX.'id'));
     }
@@ -135,11 +139,53 @@ abstract class AbstractRedisSessionHandlerTestCase extends TestCase
         }
     }
 
-    public function getOptionFixtures(): array
+    public static function getOptionFixtures(): array
     {
-        return array(
-            array(array('prefix' => 'session'), true),
-            array(array('prefix' => 'sfs', 'foo' => 'bar'), false),
-        );
+        return [
+            [['prefix' => 'session'], true],
+            [['ttl' => 1000], true],
+            [['prefix' => 'sfs', 'ttl' => 1000], true],
+            [['prefix' => 'sfs', 'foo' => 'bar'], false],
+            [['ttl' => 'sfs', 'foo' => 'bar'], false],
+        ];
+    }
+
+    /**
+     * @dataProvider getTtlFixtures
+     */
+    public function testUseTtlOption(int $ttl)
+    {
+        $options = [
+            'prefix' => self::PREFIX,
+            'ttl' => $ttl,
+        ];
+
+        $handler = new RedisSessionHandler($this->redisClient, $options);
+        $handler->write('id', 'data');
+        $redisTtl = $this->redisClient->ttl(self::PREFIX.'id');
+
+        $this->assertLessThan($redisTtl, $ttl - 5);
+        $this->assertGreaterThan($redisTtl, $ttl + 5);
+
+        $options = [
+            'prefix' => self::PREFIX,
+            'ttl' => fn () => $ttl,
+        ];
+
+        $handler = new RedisSessionHandler($this->redisClient, $options);
+        $handler->write('id', 'data');
+        $redisTtl = $this->redisClient->ttl(self::PREFIX.'id');
+
+        $this->assertLessThan($redisTtl, $ttl - 5);
+        $this->assertGreaterThan($redisTtl, $ttl + 5);
+    }
+
+    public static function getTtlFixtures(): array
+    {
+        return [
+            ['ttl' => 5000],
+            ['ttl' => 120],
+            ['ttl' => 60],
+        ];
     }
 }

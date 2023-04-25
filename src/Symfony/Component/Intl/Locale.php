@@ -11,6 +11,10 @@
 
 namespace Symfony\Component\Intl;
 
+if (!class_exists(\Locale::class)) {
+    throw new \LogicException(sprintf('You cannot use the "%s\Locale" class as the "intl" extension is not installed. See https://php.net/intl.', __NAMESPACE__));
+}
+
 /**
  * Provides access to locale-related data.
  *
@@ -20,10 +24,7 @@ namespace Symfony\Component\Intl;
  */
 final class Locale extends \Locale
 {
-    /**
-     * @var string|null
-     */
-    private static $defaultFallback = 'en';
+    private static ?string $defaultFallback = 'en';
 
     /**
      * Sets the default fallback locale.
@@ -31,19 +32,15 @@ final class Locale extends \Locale
      * The default fallback locale is used as fallback for locales that have no
      * fallback otherwise.
      *
-     * @param string|null $locale The default fallback locale
-     *
      * @see getFallback()
      */
-    public static function setDefaultFallback(?string $locale)
+    public static function setDefaultFallback(?string $locale): void
     {
         self::$defaultFallback = $locale;
     }
 
     /**
      * Returns the default fallback locale.
-     *
-     * @return string|null The default fallback locale
      *
      * @see setDefaultFallback()
      * @see getFallback()
@@ -60,17 +57,16 @@ final class Locale extends \Locale
      * the default fallback locale configured with {@link setDefaultFallback()}.
      * The default fallback locale has no fallback.
      *
-     * @param string $locale The ICU locale code to find the fallback for
-     *
      * @return string|null The ICU locale code of the fallback locale, or null
      *                     if no fallback exists
      */
-    public static function getFallback($locale): ?string
+    public static function getFallback(string $locale): ?string
     {
         if (\function_exists('locale_parse')) {
-            $localeSubTags = locale_parse($locale);
+            $localeSubTags = locale_parse($locale) ?? ['language' => $locale];
+
             if (1 === \count($localeSubTags)) {
-                if (self::$defaultFallback === $localeSubTags['language']) {
+                if ('root' !== self::$defaultFallback && self::$defaultFallback === $localeSubTags['language']) {
                     return 'root';
                 }
 
@@ -85,7 +81,9 @@ final class Locale extends \Locale
 
             array_pop($localeSubTags);
 
-            return locale_compose($localeSubTags);
+            $fallback = locale_compose($localeSubTags);
+
+            return false !== $fallback ? $fallback : null;
         }
 
         if (false !== $pos = strrpos($locale, '_')) {
@@ -96,17 +94,13 @@ final class Locale extends \Locale
             return substr($locale, 0, $pos);
         }
 
-        if (self::$defaultFallback === $locale) {
+        if ('root' !== self::$defaultFallback && self::$defaultFallback === $locale) {
             return 'root';
         }
 
         // Don't return default fallback for "root", "meta" or others
         // Normal locales have two or three letters
-        if (\strlen($locale) < 4) {
-            return self::$defaultFallback;
-        }
-
-        return null;
+        return \strlen($locale) < 4 ? self::$defaultFallback : null;
     }
 
     /**

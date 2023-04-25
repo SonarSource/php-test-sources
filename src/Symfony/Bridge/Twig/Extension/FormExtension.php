@@ -11,9 +11,15 @@
 
 namespace Symfony\Bridge\Twig\Extension;
 
+use Symfony\Bridge\Twig\Node\RenderBlockNode;
+use Symfony\Bridge\Twig\Node\SearchAndRenderBlockNode;
 use Symfony\Bridge\Twig\TokenParser\FormThemeTokenParser;
+use Symfony\Component\Form\ChoiceList\View\ChoiceGroupView;
 use Symfony\Component\Form\ChoiceList\View\ChoiceView;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormRenderer;
 use Symfony\Component\Form\FormView;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
@@ -25,66 +31,144 @@ use Twig\TwigTest;
  * @author Fabien Potencier <fabien@symfony.com>
  * @author Bernhard Schussek <bschussek@gmail.com>
  */
-class FormExtension extends AbstractExtension
+final class FormExtension extends AbstractExtension
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function getTokenParsers()
+    private ?TranslatorInterface $translator;
+
+    public function __construct(TranslatorInterface $translator = null)
     {
-        return array(
+        $this->translator = $translator;
+    }
+
+    public function getTokenParsers(): array
+    {
+        return [
             // {% form_theme form "SomeBundle::widgets.twig" %}
             new FormThemeTokenParser(),
-        );
+        ];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getFunctions()
+    public function getFunctions(): array
     {
-        return array(
-            new TwigFunction('form_widget', null, array('node_class' => 'Symfony\Bridge\Twig\Node\SearchAndRenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('form_errors', null, array('node_class' => 'Symfony\Bridge\Twig\Node\SearchAndRenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('form_label', null, array('node_class' => 'Symfony\Bridge\Twig\Node\SearchAndRenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('form_help', null, array('node_class' => 'Symfony\Bridge\Twig\Node\SearchAndRenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('form_row', null, array('node_class' => 'Symfony\Bridge\Twig\Node\SearchAndRenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('form_rest', null, array('node_class' => 'Symfony\Bridge\Twig\Node\SearchAndRenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('form', null, array('node_class' => 'Symfony\Bridge\Twig\Node\RenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('form_start', null, array('node_class' => 'Symfony\Bridge\Twig\Node\RenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('form_end', null, array('node_class' => 'Symfony\Bridge\Twig\Node\RenderBlockNode', 'is_safe' => array('html'))),
-            new TwigFunction('csrf_token', array('Symfony\Component\Form\FormRenderer', 'renderCsrfToken')),
-        );
+        return [
+            new TwigFunction('form_widget', null, ['node_class' => SearchAndRenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('form_errors', null, ['node_class' => SearchAndRenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('form_label', null, ['node_class' => SearchAndRenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('form_help', null, ['node_class' => SearchAndRenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('form_row', null, ['node_class' => SearchAndRenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('form_rest', null, ['node_class' => SearchAndRenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('form', null, ['node_class' => RenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('form_start', null, ['node_class' => RenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('form_end', null, ['node_class' => RenderBlockNode::class, 'is_safe' => ['html']]),
+            new TwigFunction('csrf_token', [FormRenderer::class, 'renderCsrfToken']),
+            new TwigFunction('form_parent', 'Symfony\Bridge\Twig\Extension\twig_get_form_parent'),
+            new TwigFunction('field_name', $this->getFieldName(...)),
+            new TwigFunction('field_value', $this->getFieldValue(...)),
+            new TwigFunction('field_label', $this->getFieldLabel(...)),
+            new TwigFunction('field_help', $this->getFieldHelp(...)),
+            new TwigFunction('field_errors', $this->getFieldErrors(...)),
+            new TwigFunction('field_choices', $this->getFieldChoices(...)),
+        ];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getFilters()
+    public function getFilters(): array
     {
-        return array(
-            new TwigFilter('humanize', array('Symfony\Component\Form\FormRenderer', 'humanize')),
-            new TwigFilter('form_encode_currency', array('Symfony\Component\Form\FormRenderer', 'encodeCurrency'), array('is_safe' => array('html'), 'needs_environment' => true)),
-        );
+        return [
+            new TwigFilter('humanize', [FormRenderer::class, 'humanize']),
+            new TwigFilter('form_encode_currency', [FormRenderer::class, 'encodeCurrency'], ['is_safe' => ['html'], 'needs_environment' => true]),
+        ];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getTests()
+    public function getTests(): array
     {
-        return array(
+        return [
             new TwigTest('selectedchoice', 'Symfony\Bridge\Twig\Extension\twig_is_selected_choice'),
             new TwigTest('rootform', 'Symfony\Bridge\Twig\Extension\twig_is_root_form'),
+        ];
+    }
+
+    public function getFieldName(FormView $view): string
+    {
+        $view->setRendered();
+
+        return $view->vars['full_name'];
+    }
+
+    public function getFieldValue(FormView $view): string|array
+    {
+        return $view->vars['value'];
+    }
+
+    public function getFieldLabel(FormView $view): ?string
+    {
+        if (false === $label = $view->vars['label']) {
+            return null;
+        }
+
+        if (!$label && $labelFormat = $view->vars['label_format']) {
+            $label = str_replace(['%id%', '%name%'], [$view->vars['id'], $view->vars['name']], $labelFormat);
+        } elseif (!$label) {
+            $label = ucfirst(strtolower(trim(preg_replace(['/([A-Z])/', '/[_\s]+/'], ['_$1', ' '], $view->vars['name']))));
+        }
+
+        return $this->createFieldTranslation(
+            $label,
+            $view->vars['label_translation_parameters'] ?: [],
+            $view->vars['translation_domain']
+        );
+    }
+
+    public function getFieldHelp(FormView $view): ?string
+    {
+        return $this->createFieldTranslation(
+            $view->vars['help'],
+            $view->vars['help_translation_parameters'] ?: [],
+            $view->vars['translation_domain']
         );
     }
 
     /**
-     * {@inheritdoc}
+     * @return string[]
      */
-    public function getName()
+    public function getFieldErrors(FormView $view): iterable
     {
-        return 'form';
+        /** @var FormError $error */
+        foreach ($view->vars['errors'] as $error) {
+            yield $error->getMessage();
+        }
+    }
+
+    /**
+     * @return string[]|string[][]
+     */
+    public function getFieldChoices(FormView $view): iterable
+    {
+        yield from $this->createFieldChoicesList($view->vars['choices'], $view->vars['choice_translation_domain']);
+    }
+
+    private function createFieldChoicesList(iterable $choices, string|false|null $translationDomain): iterable
+    {
+        foreach ($choices as $choice) {
+            $translatableLabel = $this->createFieldTranslation($choice->label, [], $translationDomain);
+
+            if ($choice instanceof ChoiceGroupView) {
+                yield $translatableLabel => $this->createFieldChoicesList($choice, $translationDomain);
+
+                continue;
+            }
+
+            /* @var ChoiceView $choice */
+            yield $translatableLabel => $choice->value;
+        }
+    }
+
+    private function createFieldTranslation(?string $value, array $parameters, string|false|null $domain): ?string
+    {
+        if (!$this->translator || !$value || false === $domain) {
+            return $value;
+        }
+
+        return $this->translator->trans($value, $parameters, $domain);
     }
 }
 
@@ -93,13 +177,9 @@ class FormExtension extends AbstractExtension
  *
  * This is a function and not callable due to performance reasons.
  *
- * @param string|array $selectedValue The selected value to compare
- *
- * @return bool Whether the choice is selected
- *
  * @see ChoiceView::isSelected()
  */
-function twig_is_selected_choice(ChoiceView $choice, $selectedValue)
+function twig_is_selected_choice(ChoiceView $choice, string|array|null $selectedValue): bool
 {
     if (\is_array($selectedValue)) {
         return \in_array($choice->value, $selectedValue, true);
@@ -111,7 +191,15 @@ function twig_is_selected_choice(ChoiceView $choice, $selectedValue)
 /**
  * @internal
  */
-function twig_is_root_form(FormView $formView)
+function twig_is_root_form(FormView $formView): bool
 {
     return null === $formView->parent;
+}
+
+/**
+ * @internal
+ */
+function twig_get_form_parent(FormView $formView): ?FormView
+{
+    return $formView->parent;
 }

@@ -11,11 +11,20 @@
 
 namespace Symfony\Bridge\Doctrine\Tests\Security\User;
 
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Tools\SchemaTool;
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
+use Doctrine\Persistence\ObjectRepository;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Doctrine\Security\User\EntityUserProvider;
-use Symfony\Bridge\Doctrine\Test\DoctrineTestHelper;
+use Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface;
+use Symfony\Bridge\Doctrine\Tests\DoctrineTestHelper;
 use Symfony\Bridge\Doctrine\Tests\Fixtures\User;
+use Symfony\Component\Security\Core\Exception\UserNotFoundException;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\PasswordUpgraderInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 class EntityUserProviderTest extends TestCase
 {
@@ -51,25 +60,21 @@ class EntityUserProviderTest extends TestCase
 
         $provider = new EntityUserProvider($this->getManager($em), 'Symfony\Bridge\Doctrine\Tests\Fixtures\User', 'name');
 
-        $this->assertSame($user, $provider->loadUserByUsername('user1'));
+        $this->assertSame($user, $provider->loadUserByIdentifier('user1'));
     }
 
     public function testLoadUserByUsernameWithUserLoaderRepositoryAndWithoutProperty()
     {
         $user = new User(1, 1, 'user1');
 
-        $repository = $this->getMockBuilder('Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $repository = $this->createMock(UserLoaderRepository::class);
         $repository
             ->expects($this->once())
-            ->method('loadUserByUsername')
+            ->method('loadUserByIdentifier')
             ->with('user1')
             ->willReturn($user);
 
-        $em = $this->getMockBuilder('Doctrine\ORM\EntityManager')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $em = $this->createMock(EntityManager::class);
         $em
             ->expects($this->once())
             ->method('getRepository')
@@ -77,15 +82,13 @@ class EntityUserProviderTest extends TestCase
             ->willReturn($repository);
 
         $provider = new EntityUserProvider($this->getManager($em), 'Symfony\Bridge\Doctrine\Tests\Fixtures\User');
-        $this->assertSame($user, $provider->loadUserByUsername('user1'));
+        $this->assertSame($user, $provider->loadUserByIdentifier('user1'));
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage You must either make the "Symfony\Bridge\Doctrine\Tests\Fixtures\User" entity Doctrine Repository ("Doctrine\ORM\EntityRepository") implement "Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface" or set the "property" option in the corresponding entity provider configuration.
-     */
     public function testLoadUserByUsernameWithNonUserLoaderRepositoryAndWithoutProperty()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('You must either make the "Symfony\Bridge\Doctrine\Tests\Fixtures\User" entity Doctrine Repository ("Doctrine\ORM\EntityRepository") implement "Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface" or set the "property" option in the corresponding entity provider configuration.');
         $em = DoctrineTestHelper::createTestEntityManager();
         $this->createSchema($em);
 
@@ -95,7 +98,7 @@ class EntityUserProviderTest extends TestCase
         $em->flush();
 
         $provider = new EntityUserProvider($this->getManager($em), 'Symfony\Bridge\Doctrine\Tests\Fixtures\User');
-        $provider->loadUserByUsername('user1');
+        $provider->loadUserByIdentifier('user1');
     }
 
     public function testRefreshUserRequiresId()
@@ -105,10 +108,8 @@ class EntityUserProviderTest extends TestCase
         $user1 = new User(null, null, 'user1');
         $provider = new EntityUserProvider($this->getManager($em), 'Symfony\Bridge\Doctrine\Tests\Fixtures\User', 'name');
 
-        $this->{method_exists($this, $_ = 'expectException') ? $_ : 'setExpectedException'}(
-            'InvalidArgumentException',
-            'You cannot refresh a user from the EntityUserProvider that does not contain an identifier. The user object has to be serialized with its own identifier mapped by Doctrine'
-        );
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('You cannot refresh a user from the EntityUserProvider that does not contain an identifier. The user object has to be serialized with its own identifier mapped by Doctrine');
         $provider->refreshUser($user1);
     }
 
@@ -125,10 +126,9 @@ class EntityUserProviderTest extends TestCase
         $provider = new EntityUserProvider($this->getManager($em), 'Symfony\Bridge\Doctrine\Tests\Fixtures\User', 'name');
 
         $user2 = new User(1, 2, 'user2');
-        $this->{method_exists($this, $_ = 'expectException') ? $_ : 'setExpectedException'}(
-            'Symfony\Component\Security\Core\Exception\UsernameNotFoundException',
-            'User with id {"id1":1,"id2":2} not found'
-        );
+        $this->expectException(UserNotFoundException::class);
+        $this->expectExceptionMessage('User with id {"id1":1,"id2":2} not found');
+
         $provider->refreshUser($user2);
     }
 
@@ -145,18 +145,18 @@ class EntityUserProviderTest extends TestCase
 
         $provider = new EntityUserProvider($this->getManager($em), 'Symfony\Bridge\Doctrine\Tests\Fixtures\User', 'name');
 
-        $user2 = $em->getReference('Symfony\Bridge\Doctrine\Tests\Fixtures\User', array('id1' => 1, 'id2' => 1));
-        $this->assertTrue($provider->supportsClass(\get_class($user2)));
+        $user2 = $em->getReference('Symfony\Bridge\Doctrine\Tests\Fixtures\User', ['id1' => 1, 'id2' => 1]);
+        $this->assertTrue($provider->supportsClass($user2::class));
     }
 
     public function testLoadUserByUserNameShouldLoadUserWhenProperInterfaceProvided()
     {
-        $repository = $this->getMockBuilder('\Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface')->getMock();
+        $repository = $this->createMock(UserLoaderRepository::class);
         $repository->expects($this->once())
-            ->method('loadUserByUsername')
+            ->method('loadUserByIdentifier')
             ->with('name')
             ->willReturn(
-                $this->getMockBuilder('\Symfony\Component\Security\Core\User\UserInterface')->getMock()
+                $this->createMock(UserInterface::class)
             );
 
         $provider = new EntityUserProvider(
@@ -164,39 +164,54 @@ class EntityUserProviderTest extends TestCase
             'Symfony\Bridge\Doctrine\Tests\Fixtures\User'
         );
 
-        $provider->loadUserByUsername('name');
+        $provider->loadUserByIdentifier('name');
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testLoadUserByUserNameShouldDeclineInvalidInterface()
     {
-        $repository = $this->getMockBuilder('\Symfony\Component\Security\Core\User\AdvancedUserInterface')->getMock();
+        $this->expectException(\InvalidArgumentException::class);
+        $repository = $this->createMock(ObjectRepository::class);
 
         $provider = new EntityUserProvider(
             $this->getManager($this->getObjectManager($repository)),
             'Symfony\Bridge\Doctrine\Tests\Fixtures\User'
         );
 
-        $provider->loadUserByUsername('name');
+        $provider->loadUserByIdentifier('name');
+    }
+
+    public function testPasswordUpgrades()
+    {
+        $user = new User(1, 1, 'user1');
+
+        $repository = $this->createMock(PasswordUpgraderRepository::class);
+        $repository->expects($this->once())
+            ->method('upgradePassword')
+            ->with($user, 'foobar');
+
+        $provider = new EntityUserProvider(
+            $this->getManager($this->getObjectManager($repository)),
+            'Symfony\Bridge\Doctrine\Tests\Fixtures\User'
+        );
+
+        $provider->upgradePassword($user, 'foobar');
     }
 
     private function getManager($em, $name = null)
     {
-        $manager = $this->getMockBuilder('Doctrine\Common\Persistence\ManagerRegistry')->getMock();
+        $manager = $this->createMock(ManagerRegistry::class);
         $manager->expects($this->any())
             ->method('getManager')
             ->with($this->equalTo($name))
-            ->will($this->returnValue($em));
+            ->willReturn($em);
 
         return $manager;
     }
 
     private function getObjectManager($repository)
     {
-        $em = $this->getMockBuilder('\Doctrine\Common\Persistence\ObjectManager')
-            ->setMethods(array('getClassMetadata', 'getRepository'))
+        $em = $this->getMockBuilder(ObjectManager::class)
+            ->onlyMethods(['getClassMetadata', 'getRepository'])
             ->getMockForAbstractClass();
         $em->expects($this->any())
             ->method('getRepository')
@@ -208,8 +223,18 @@ class EntityUserProviderTest extends TestCase
     private function createSchema($em)
     {
         $schemaTool = new SchemaTool($em);
-        $schemaTool->createSchema(array(
+        $schemaTool->createSchema([
             $em->getClassMetadata('Symfony\Bridge\Doctrine\Tests\Fixtures\User'),
-        ));
+        ]);
     }
+}
+
+abstract class UserLoaderRepository implements ObjectRepository, UserLoaderInterface
+{
+    abstract public function loadUserByIdentifier(string $identifier): ?UserInterface;
+}
+
+abstract class PasswordUpgraderRepository implements ObjectRepository, PasswordUpgraderInterface
+{
+    abstract public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void;
 }

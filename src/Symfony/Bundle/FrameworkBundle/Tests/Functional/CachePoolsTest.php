@@ -15,33 +15,33 @@ use Symfony\Component\Cache\Adapter\AdapterInterface;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Exception\InvalidArgumentException;
+use Symfony\Component\HttpKernel\KernelInterface;
 
-class CachePoolsTest extends WebTestCase
+class CachePoolsTest extends AbstractWebTestCase
 {
     public function testCachePools()
     {
-        $this->doTestCachePools(array(), AdapterInterface::class);
+        $this->doTestCachePools([], AdapterInterface::class);
     }
 
     /**
      * @requires extension redis
+     *
+     * @group integration
      */
     public function testRedisCachePools()
     {
+        $this->skipIfRedisUnavailable();
+
         try {
-            $this->doTestCachePools(array('root_config' => 'redis_config.yml', 'environment' => 'redis_cache'), RedisAdapter::class);
+            $this->doTestCachePools(['root_config' => 'redis_config.yml', 'environment' => 'redis_cache'], RedisAdapter::class);
         } catch (\PHPUnit\Framework\Error\Warning $e) {
-            if (0 !== strpos($e->getMessage(), 'unable to connect to')) {
-                throw $e;
-            }
-            $this->markTestSkipped($e->getMessage());
-        } catch (\PHPUnit_Framework_Error_Warning $e) {
-            if (0 !== strpos($e->getMessage(), 'unable to connect to')) {
+            if (!str_starts_with($e->getMessage(), 'unable to connect to')) {
                 throw $e;
             }
             $this->markTestSkipped($e->getMessage());
         } catch (InvalidArgumentException $e) {
-            if (0 !== strpos($e->getMessage(), 'Redis connection failed')) {
+            if (!str_starts_with($e->getMessage(), 'Redis connection ')) {
                 throw $e;
             }
             $this->markTestSkipped($e->getMessage());
@@ -50,18 +50,17 @@ class CachePoolsTest extends WebTestCase
 
     /**
      * @requires extension redis
+     *
+     * @group integration
      */
     public function testRedisCustomCachePools()
     {
+        $this->skipIfRedisUnavailable();
+
         try {
-            $this->doTestCachePools(array('root_config' => 'redis_custom_config.yml', 'environment' => 'custom_redis_cache'), RedisAdapter::class);
+            $this->doTestCachePools(['root_config' => 'redis_custom_config.yml', 'environment' => 'custom_redis_cache'], RedisAdapter::class);
         } catch (\PHPUnit\Framework\Error\Warning $e) {
-            if (0 !== strpos($e->getMessage(), 'unable to connect to')) {
-                throw $e;
-            }
-            $this->markTestSkipped($e->getMessage());
-        } catch (\PHPUnit_Framework_Error_Warning $e) {
-            if (0 !== strpos($e->getMessage(), 'unable to connect to')) {
+            if (!str_starts_with($e->getMessage(), 'unable to connect to')) {
                 throw $e;
             }
             $this->markTestSkipped($e->getMessage());
@@ -71,7 +70,7 @@ class CachePoolsTest extends WebTestCase
     private function doTestCachePools($options, $adapterClass)
     {
         static::bootKernel($options);
-        $container = static::$container;
+        $container = static::getContainer();
 
         $pool1 = $container->get('cache.pool1');
         $this->assertInstanceOf($adapterClass, $pool1);
@@ -89,7 +88,7 @@ class CachePoolsTest extends WebTestCase
         $pool2 = $container->get('cache.pool2');
         $pool2->save($item);
 
-        $container->get('cache_clearer')->clear($container->getParameter('kernel.cache_dir'));
+        $container->get('cache_clearer.alias')->clear($container->getParameter('kernel.cache_dir'));
         $item = $pool1->getItem($key);
         $this->assertFalse($item->isHit());
 
@@ -116,8 +115,17 @@ class CachePoolsTest extends WebTestCase
         $this->assertNotInstanceof(TagAwareAdapter::class, $pool7);
     }
 
-    protected static function createKernel(array $options = array())
+    protected static function createKernel(array $options = []): KernelInterface
     {
-        return parent::createKernel(array('test_case' => 'CachePools') + $options);
+        return parent::createKernel(['test_case' => 'CachePools'] + $options);
+    }
+
+    private function skipIfRedisUnavailable()
+    {
+        try {
+            (new \Redis())->connect(...explode(':', getenv('REDIS_HOST')));
+        } catch (\Exception $e) {
+            self::markTestSkipped($e->getMessage());
+        }
     }
 }

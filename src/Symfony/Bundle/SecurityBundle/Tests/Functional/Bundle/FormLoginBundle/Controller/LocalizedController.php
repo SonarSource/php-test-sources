@@ -11,30 +11,36 @@
 
 namespace Symfony\Bundle\SecurityBundle\Tests\Functional\Bundle\FormLoginBundle\Controller;
 
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
-use Symfony\Component\DependencyInjection\ContainerAwareTrait;
+use Psr\Container\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Security\Core\Security;
+use Symfony\Component\Security\Http\SecurityRequestAttributes;
+use Symfony\Contracts\Service\ServiceSubscriberInterface;
+use Twig\Environment;
 
-class LocalizedController implements ContainerAwareInterface
+class LocalizedController implements ServiceSubscriberInterface
 {
-    use ContainerAwareTrait;
+    private $container;
+
+    public function __construct(ContainerInterface $container)
+    {
+        $this->container = $container;
+    }
 
     public function loginAction(Request $request)
     {
         // get the login error if there is one
-        if ($request->attributes->has(Security::AUTHENTICATION_ERROR)) {
-            $error = $request->attributes->get(Security::AUTHENTICATION_ERROR);
+        if ($request->attributes->has(SecurityRequestAttributes::AUTHENTICATION_ERROR)) {
+            $error = $request->attributes->get(SecurityRequestAttributes::AUTHENTICATION_ERROR);
         } else {
-            $error = $request->getSession()->get(Security::AUTHENTICATION_ERROR);
+            $error = $request->getSession()->get(SecurityRequestAttributes::AUTHENTICATION_ERROR);
         }
 
-        return new Response($this->container->get('twig')->render('@FormLogin/Localized/login.html.twig', array(
+        return new Response($this->container->get('twig')->render('@FormLogin/Localized/login.html.twig', [
             // last username entered by the user
-            'last_username' => $request->getSession()->get(Security::LAST_USERNAME),
+            'last_username' => $request->getSession()->get(SecurityRequestAttributes::LAST_USERNAME),
             'error' => $error,
-        )));
+        ]));
     }
 
     public function loginCheckAction()
@@ -54,11 +60,18 @@ class LocalizedController implements ContainerAwareInterface
 
     public function profileAction()
     {
-        return new Response('Profile');
+        return new Response('<html><body>Profile</body></html>');
     }
 
     public function homepageAction()
     {
-        return new Response('Homepage');
+        return (new Response('<html><body>Homepage</body></html>'))->setPublic();
+    }
+
+    public static function getSubscribedServices(): array
+    {
+        return [
+            'twig' => Environment::class,
+        ];
     }
 }

@@ -21,7 +21,7 @@ abstract class AbstractConnection implements ConnectionInterface
 {
     protected $config;
 
-    public function __construct(array $config = array())
+    public function __construct(array $config = [])
     {
         $resolver = new OptionsResolver();
 
@@ -31,33 +31,27 @@ abstract class AbstractConnection implements ConnectionInterface
     }
 
     /**
-     * Configures the adapter's options.
-     *
-     * @param OptionsResolver $resolver An OptionsResolver instance
+     * @return void
      */
     protected function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array(
+        $resolver->setDefaults([
             'host' => 'localhost',
             'version' => 3,
             'connection_string' => null,
             'encryption' => 'none',
-            'options' => array(),
-        ));
+            'options' => [],
+        ]);
 
-        $resolver->setDefault('port', function (Options $options) {
-            return 'ssl' === $options['encryption'] ? 636 : 389;
-        });
+        $resolver->setDefault('port', fn (Options $options) => 'ssl' === $options['encryption'] ? 636 : 389);
 
-        $resolver->setDefault('connection_string', function (Options $options) {
-            return sprintf('ldap%s://%s:%s', 'ssl' === $options['encryption'] ? 's' : '', $options['host'], $options['port']);
-        });
+        $resolver->setDefault('connection_string', fn (Options $options) => sprintf('ldap%s://%s:%s', 'ssl' === $options['encryption'] ? 's' : '', $options['host'], $options['port']));
 
         $resolver->setAllowedTypes('host', 'string');
         $resolver->setAllowedTypes('port', 'numeric');
         $resolver->setAllowedTypes('connection_string', 'string');
         $resolver->setAllowedTypes('version', 'numeric');
-        $resolver->setAllowedValues('encryption', array('none', 'ssl', 'tls'));
+        $resolver->setAllowedValues('encryption', ['none', 'ssl', 'tls']);
         $resolver->setAllowedTypes('options', 'array');
     }
 }

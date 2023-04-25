@@ -27,13 +27,13 @@ class PropertyInfoExtractor implements PropertyInfoExtractorInterface, PropertyI
     private $initializableExtractors;
 
     /**
-     * @param iterable|PropertyListExtractorInterface[]          $listExtractors
-     * @param iterable|PropertyTypeExtractorInterface[]          $typeExtractors
-     * @param iterable|PropertyDescriptionExtractorInterface[]   $descriptionExtractors
-     * @param iterable|PropertyAccessExtractorInterface[]        $accessExtractors
-     * @param iterable|PropertyInitializableExtractorInterface[] $initializableExtractors
+     * @param iterable<mixed, PropertyListExtractorInterface>          $listExtractors
+     * @param iterable<mixed, PropertyTypeExtractorInterface>          $typeExtractors
+     * @param iterable<mixed, PropertyDescriptionExtractorInterface>   $descriptionExtractors
+     * @param iterable<mixed, PropertyAccessExtractorInterface>        $accessExtractors
+     * @param iterable<mixed, PropertyInitializableExtractorInterface> $initializableExtractors
      */
-    public function __construct(iterable $listExtractors = array(), iterable $typeExtractors = array(), iterable $descriptionExtractors = array(), iterable $accessExtractors = array(), iterable $initializableExtractors = array())
+    public function __construct(iterable $listExtractors = [], iterable $typeExtractors = [], iterable $descriptionExtractors = [], iterable $accessExtractors = [], iterable $initializableExtractors = [])
     {
         $this->listExtractors = $listExtractors;
         $this->typeExtractors = $typeExtractors;
@@ -42,73 +42,55 @@ class PropertyInfoExtractor implements PropertyInfoExtractorInterface, PropertyI
         $this->initializableExtractors = $initializableExtractors;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getProperties($class, array $context = array())
+    public function getProperties(string $class, array $context = []): ?array
     {
-        return $this->extract($this->listExtractors, 'getProperties', array($class, $context));
+        return $this->extract($this->listExtractors, 'getProperties', [$class, $context]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getShortDescription($class, $property, array $context = array())
+    public function getShortDescription(string $class, string $property, array $context = []): ?string
     {
-        return $this->extract($this->descriptionExtractors, 'getShortDescription', array($class, $property, $context));
+        return $this->extract($this->descriptionExtractors, 'getShortDescription', [$class, $property, $context]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getLongDescription($class, $property, array $context = array())
+    public function getLongDescription(string $class, string $property, array $context = []): ?string
     {
-        return $this->extract($this->descriptionExtractors, 'getLongDescription', array($class, $property, $context));
+        return $this->extract($this->descriptionExtractors, 'getLongDescription', [$class, $property, $context]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getTypes($class, $property, array $context = array())
+    public function getTypes(string $class, string $property, array $context = []): ?array
     {
-        return $this->extract($this->typeExtractors, 'getTypes', array($class, $property, $context));
+        return $this->extract($this->typeExtractors, 'getTypes', [$class, $property, $context]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function isReadable($class, $property, array $context = array())
+    public function isReadable(string $class, string $property, array $context = []): ?bool
     {
-        return $this->extract($this->accessExtractors, 'isReadable', array($class, $property, $context));
+        return $this->extract($this->accessExtractors, 'isReadable', [$class, $property, $context]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function isWritable($class, $property, array $context = array())
+    public function isWritable(string $class, string $property, array $context = []): ?bool
     {
-        return $this->extract($this->accessExtractors, 'isWritable', array($class, $property, $context));
+        return $this->extract($this->accessExtractors, 'isWritable', [$class, $property, $context]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function isInitializable(string $class, string $property, array $context = array()): ?bool
+    public function isInitializable(string $class, string $property, array $context = []): ?bool
     {
-        return $this->extract($this->initializableExtractors, 'isInitializable', array($class, $property, $context));
+        return $this->extract($this->initializableExtractors, 'isInitializable', [$class, $property, $context]);
     }
 
     /**
      * Iterates over registered extractors and return the first value found.
      *
-     * @return mixed
+     * @param iterable<mixed, object> $extractors
+     * @param list<mixed>             $arguments
      */
-    private function extract(iterable $extractors, string $method, array $arguments)
+    private function extract(iterable $extractors, string $method, array $arguments): mixed
     {
         foreach ($extractors as $extractor) {
             if (null !== $value = $extractor->{$method}(...$arguments)) {
                 return $value;
             }
         }
+
+        return null;
     }
 }

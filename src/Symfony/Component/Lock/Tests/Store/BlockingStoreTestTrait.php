@@ -13,7 +13,7 @@ namespace Symfony\Component\Lock\Tests\Store;
 
 use Symfony\Component\Lock\Exception\LockConflictedException;
 use Symfony\Component\Lock\Key;
-use Symfony\Component\Lock\StoreInterface;
+use Symfony\Component\Lock\PersistingStoreInterface;
 
 /**
  * @author Jérémy Derussé <jeremy@derusse.com>
@@ -21,9 +21,9 @@ use Symfony\Component\Lock\StoreInterface;
 trait BlockingStoreTestTrait
 {
     /**
-     * @see AbstractStoreTest::getStore()
+     * @see AbstractStoreTestCase::getStore()
      *
-     * @return StoreInterface
+     * @return PersistingStoreInterface
      */
     abstract protected function getStore();
 
@@ -32,24 +32,28 @@ trait BlockingStoreTestTrait
      *
      * This test is time sensible: the $clockDelay could be adjust.
      *
+     * It also fails when run with the global ./phpunit test suite.
+     *
+     * @group transient
+     *
      * @requires extension pcntl
      * @requires extension posix
      * @requires function pcntl_sigwaitinfo
      */
     public function testBlockingLocks()
     {
-        // Amount a microsecond used to order async actions
+        // Amount of microseconds we should wait without slowing things down too much
         $clockDelay = 50000;
 
         $key = new Key(uniqid(__METHOD__, true));
         $parentPID = posix_getpid();
 
         // Block SIGHUP signal
-        pcntl_sigprocmask(SIG_BLOCK, array(SIGHUP));
+        pcntl_sigprocmask(\SIG_BLOCK, [\SIGHUP]);
 
         if ($childPID = pcntl_fork()) {
             // Wait the start of the child
-            pcntl_sigwaitinfo(array(SIGHUP), $info);
+            pcntl_sigwaitinfo([\SIGHUP], $info);
 
             $store = $this->getStore();
             try {
@@ -57,10 +61,10 @@ trait BlockingStoreTestTrait
                 $store->save($key);
                 $this->fail('The store saves a locked key.');
             } catch (LockConflictedException $e) {
+            } finally {
+                // send the ready signal to the child
+                posix_kill($childPID, \SIGHUP);
             }
-
-            // send the ready signal to the child
-            posix_kill($childPID, SIGHUP);
 
             // This call should be blocked by the child #1
             $store->waitAndSave($key);
@@ -72,22 +76,23 @@ trait BlockingStoreTestTrait
             $this->assertSame(0, pcntl_wexitstatus($status1), 'The child process couldn\'t lock the resource');
         } else {
             // Block SIGHUP signal
-            pcntl_sigprocmask(SIG_BLOCK, array(SIGHUP));
+            pcntl_sigprocmask(\SIG_BLOCK, [\SIGHUP]);
 
-            $store = $this->getStore();
             try {
+                $store = $this->getStore();
                 $store->save($key);
                 // send the ready signal to the parent
-                posix_kill($parentPID, SIGHUP);
+                posix_kill($parentPID, \SIGHUP);
 
                 // Wait for the parent to be ready
-                pcntl_sigwaitinfo(array(SIGHUP), $info);
+                pcntl_sigwaitinfo([\SIGHUP], $info);
 
                 // Wait ClockDelay to let parent assert to finish
                 usleep($clockDelay);
                 $store->delete($key);
                 exit(0);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
+                posix_kill($parentPID, \SIGHUP);
                 exit(1);
             }
         }

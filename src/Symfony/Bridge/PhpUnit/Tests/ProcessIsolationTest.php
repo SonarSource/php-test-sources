@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Symfony\Bridge\PhpUnit\Tests;
 
 use PHPUnit\Framework\TestCase;
@@ -18,20 +27,15 @@ class ProcessIsolationTest extends TestCase
      */
     public function testIsolation()
     {
-        @trigger_error('Test abc', E_USER_DEPRECATED);
+        @trigger_error('Test abc', \E_USER_DEPRECATED);
         $this->addToAssertionCount(1);
     }
 
     public function testCallingOtherErrorHandler()
     {
-        $class = class_exists('PHPUnit\Framework\Exception') ? 'PHPUnit\Framework\Exception' : 'PHPUnit_Framework_Exception';
-        if (method_exists($this, 'expectException')) {
-            $this->expectException($class);
-            $this->expectExceptionMessage('Test that PHPUnit\'s error handler fires.');
-        } else {
-            $this->setExpectedException($class, 'Test that PHPUnit\'s error handler fires.');
-        }
+        $this->expectException(\PHPUnit\Framework\Exception::class);
+        $this->expectExceptionMessage('Test that PHPUnit\'s error handler fires.');
 
-        trigger_error('Test that PHPUnit\'s error handler fires.', E_USER_WARNING);
+        trigger_error('Test that PHPUnit\'s error handler fires.', \E_USER_WARNING);
     }
 }

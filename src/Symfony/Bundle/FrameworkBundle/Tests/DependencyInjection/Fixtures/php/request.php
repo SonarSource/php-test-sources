@@ -1,7 +1,8 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'request' => array(
-        'formats' => array(),
-    ),
-));
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'request' => [
+        'formats' => [],
+    ],
+]);

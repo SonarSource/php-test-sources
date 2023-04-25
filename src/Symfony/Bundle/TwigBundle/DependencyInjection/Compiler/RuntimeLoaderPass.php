@@ -21,6 +21,9 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 class RuntimeLoaderPass implements CompilerPassInterface
 {
+    /**
+     * @return void
+     */
     public function process(ContainerBuilder $container)
     {
         if (!$container->hasDefinition('twig.runtime_loader')) {
@@ -28,7 +31,7 @@ class RuntimeLoaderPass implements CompilerPassInterface
         }
 
         $definition = $container->getDefinition('twig.runtime_loader');
-        $mapping = array();
+        $mapping = [];
         foreach ($container->findTaggedServiceIds('twig.runtime', true) as $id => $attributes) {
             $def = $container->getDefinition($id);
             $mapping[$def->getClass()] = new Reference($id);

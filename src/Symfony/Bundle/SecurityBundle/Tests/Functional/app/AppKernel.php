@@ -35,23 +35,23 @@ class AppKernel extends Kernel
         $this->testCase = $testCase;
 
         $fs = new Filesystem();
-        if (!$fs->isAbsolutePath($rootConfig) && !is_file($rootConfig = __DIR__.'/'.$testCase.'/'.$rootConfig)) {
-            throw new \InvalidArgumentException(sprintf('The root config "%s" does not exist.', $rootConfig));
+        foreach ((array) $rootConfig as $config) {
+            if (!$fs->isAbsolutePath($config) && !is_file($config = __DIR__.'/'.$testCase.'/'.$config)) {
+                throw new \InvalidArgumentException(sprintf('The root config "%s" does not exist.', $config));
+            }
+
+            $this->rootConfig[] = $config;
         }
-        $this->rootConfig = $rootConfig;
 
         parent::__construct($environment, $debug);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getContainerClass()
+    public function getContainerClass(): string
     {
-        return parent::getContainerClass().substr(md5($this->rootConfig), -16);
+        return parent::getContainerClass().substr(md5(implode('', $this->rootConfig)), -16);
     }
 
-    public function registerBundles()
+    public function registerBundles(): iterable
     {
         if (!is_file($filename = $this->getProjectDir().'/'.$this->testCase.'/bundles.php')) {
             throw new \RuntimeException(sprintf('The bundles file "%s" does not exist.', $filename));
@@ -60,29 +60,31 @@ class AppKernel extends Kernel
         return include $filename;
     }
 
-    public function getProjectDir()
+    public function getProjectDir(): string
     {
         return __DIR__;
     }
 
-    public function getCacheDir()
+    public function getCacheDir(): string
     {
         return sys_get_temp_dir().'/'.$this->varDir.'/'.$this->testCase.'/cache/'.$this->environment;
     }
 
-    public function getLogDir()
+    public function getLogDir(): string
     {
         return sys_get_temp_dir().'/'.$this->varDir.'/'.$this->testCase.'/logs';
     }
 
-    public function registerContainerConfiguration(LoaderInterface $loader)
+    public function registerContainerConfiguration(LoaderInterface $loader): void
     {
-        $loader->load($this->rootConfig);
+        foreach ($this->rootConfig as $config) {
+            $loader->load($config);
+        }
     }
 
     public function serialize()
     {
-        return serialize(array($this->varDir, $this->testCase, $this->rootConfig, $this->getEnvironment(), $this->isDebug()));
+        return serialize([$this->varDir, $this->testCase, $this->rootConfig, $this->getEnvironment(), $this->isDebug()]);
     }
 
     public function unserialize($str)
@@ -91,7 +93,7 @@ class AppKernel extends Kernel
         $this->__construct($a[0], $a[1], $a[2], $a[3], $a[4]);
     }
 
-    protected function getKernelParameters()
+    protected function getKernelParameters(): array
     {
         $parameters = parent::getKernelParameters();
         $parameters['kernel.test_case'] = $this->testCase;

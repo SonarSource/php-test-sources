@@ -12,75 +12,61 @@
 namespace Symfony\Component\Form\Tests\Extension\DependencyInjection;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Form\AbstractTypeExtension;
+use Symfony\Component\Form\Exception\InvalidArgumentException;
 use Symfony\Component\Form\Extension\DependencyInjection\DependencyInjectionExtension;
 use Symfony\Component\Form\FormTypeGuesserChain;
-use Symfony\Component\Form\FormTypeGuesserInterface;
 
 class DependencyInjectionExtensionTest extends TestCase
 {
     public function testGetTypeExtensions()
     {
-        $container = $this->createContainerMock();
-        $container->expects($this->never())->method('get');
-
         $typeExtension1 = new TestTypeExtension();
         $typeExtension2 = new TestTypeExtension();
         $typeExtension3 = new OtherTypeExtension();
         $typeExtension4 = new MultipleTypesTypeExtension();
 
-        $extensions = array(
-            'test' => new \ArrayIterator(array($typeExtension1, $typeExtension2, $typeExtension4)),
-            'other' => new \ArrayIterator(array($typeExtension3, $typeExtension4)),
-        );
+        $extensions = [
+            'test' => new \ArrayIterator([$typeExtension1, $typeExtension2, $typeExtension4]),
+            'other' => new \ArrayIterator([$typeExtension3, $typeExtension4]),
+        ];
 
-        $extension = new DependencyInjectionExtension($container, $extensions, array());
+        $extension = new DependencyInjectionExtension(new ContainerBuilder(), $extensions, []);
 
         $this->assertTrue($extension->hasTypeExtensions('test'));
         $this->assertTrue($extension->hasTypeExtensions('other'));
         $this->assertFalse($extension->hasTypeExtensions('unknown'));
-        $this->assertSame(array($typeExtension1, $typeExtension2, $typeExtension4), $extension->getTypeExtensions('test'));
-        $this->assertSame(array($typeExtension3, $typeExtension4), $extension->getTypeExtensions('other'));
+        $this->assertSame([$typeExtension1, $typeExtension2, $typeExtension4], $extension->getTypeExtensions('test'));
+        $this->assertSame([$typeExtension3, $typeExtension4], $extension->getTypeExtensions('other'));
     }
 
-    /**
-     * @expectedException \Symfony\Component\Form\Exception\InvalidArgumentException
-     */
     public function testThrowExceptionForInvalidExtendedType()
     {
-        $container = $this->getMockBuilder('Psr\Container\ContainerInterface')->getMock();
-        $container->expects($this->never())->method('get');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(sprintf('The extended type "unmatched" specified for the type extension class "%s" does not match any of the actual extended types (["test"]).', TestTypeExtension::class));
 
-        $extensions = array(
-            'unmatched' => new \ArrayIterator(array(new TestTypeExtension())),
-        );
+        $extensions = [
+            'unmatched' => new \ArrayIterator([new TestTypeExtension()]),
+        ];
 
-        $extension = new DependencyInjectionExtension($container, $extensions, array());
+        $extension = new DependencyInjectionExtension(new ContainerBuilder(), $extensions, []);
 
         $extension->getTypeExtensions('unmatched');
     }
 
     public function testGetTypeGuesser()
     {
-        $container = $this->createContainerMock();
-        $extension = new DependencyInjectionExtension($container, array(), array($this->getMockBuilder(FormTypeGuesserInterface::class)->getMock()));
+        $extension = new DependencyInjectionExtension(new ContainerBuilder(), [], [new FormTypeGuesserChain([])]);
 
         $this->assertInstanceOf(FormTypeGuesserChain::class, $extension->getTypeGuesser());
     }
 
     public function testGetTypeGuesserReturnsNullWhenNoTypeGuessersHaveBeenConfigured()
     {
-        $container = $this->createContainerMock();
-        $extension = new DependencyInjectionExtension($container, array(), array());
+        $extension = new DependencyInjectionExtension(new ContainerBuilder(), [], []);
 
         $this->assertNull($extension->getTypeGuesser());
-    }
-
-    private function createContainerMock()
-    {
-        return $this->getMockBuilder('Psr\Container\ContainerInterface')
-            ->setMethods(array('get', 'has'))
-            ->getMock();
     }
 }
 
@@ -88,7 +74,7 @@ class TestTypeExtension extends AbstractTypeExtension
 {
     public static function getExtendedTypes(): iterable
     {
-        return array('test');
+        return ['test'];
     }
 }
 
@@ -96,7 +82,7 @@ class OtherTypeExtension extends AbstractTypeExtension
 {
     public static function getExtendedTypes(): iterable
     {
-        return array('other');
+        return ['other'];
     }
 }
 

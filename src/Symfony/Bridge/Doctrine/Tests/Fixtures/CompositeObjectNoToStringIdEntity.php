@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Symfony\Bridge\Doctrine\Tests\Fixtures;
 
 use Doctrine\ORM\Mapping as ORM;
@@ -35,18 +44,12 @@ class CompositeObjectNoToStringIdEntity
         $this->objectTwo = $objectTwo;
     }
 
-    /**
-     * @return SingleIntIdNoToStringEntity
-     */
-    public function getObjectOne()
+    public function getObjectOne(): SingleIntIdNoToStringEntity
     {
         return $this->objectOne;
     }
 
-    /**
-     * @return SingleIntIdNoToStringEntity
-     */
-    public function getObjectTwo()
+    public function getObjectTwo(): SingleIntIdNoToStringEntity
     {
         return $this->objectTwo;
     }

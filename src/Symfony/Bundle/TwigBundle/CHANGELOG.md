@@ -1,6 +1,57 @@
 CHANGELOG
 =========
 
+6.3
+---
+
+ * Deprecate the `Twig_Environment` autowiring alias, use `Twig\Environment` instead
+
+6.2
+---
+
+ * Add the `twig.mailer.html_to_text_converter` option to allow configuring custom `HtmlToTextConverterInterface`
+   implementations to be used by the `twig.mime_body_renderer` service
+
+6.1
+---
+
+ * Add option `twig.file_name_pattern` to restrict which files are compiled by cache warmer and linter
+ * Deprecate option `twig.autoescape`, use `twig.autoescape_service[_method]` instead
+
+6.0
+---
+
+ * The `twig` service is now private
+
+5.3
+---
+
+ * Add support for the new `serialize` filter (from Twig Bridge)
+
+5.2.0
+-----
+
+ * deprecated the public `twig` service to private
+
+5.0.0
+-----
+
+ * updated default value for the `strict_variables` option to `%kernel.debug%` parameter
+ * removed support to load templates from the legacy directories `src/Resources/views/` and `src/Resources/<BundleName>/views/`
+ * removed `TwigEngine` class, use `Twig\Environment` instead
+ * removed `FilesystemLoader` and `NativeFilesystemLoader`, use Twig notation for templates instead
+ * removed `twig.exception_controller` configuration option, use `framework.error_controller` option instead
+ * removed `ExceptionController`, `PreviewErrorController` and all built-in error templates in favor of the new error renderer mechanism
+
+4.4.0
+-----
+
+ * marked the `TemplateIterator` as `internal`
+ * added HTML comment to beginning and end of `exception_full.html.twig`
+ * deprecated `ExceptionController` and `PreviewErrorController` controllers, use `ErrorController` from the `HttpKernel` component instead
+ * deprecated all built-in error templates in favor of the new error renderer mechanism
+ * deprecated `twig.exception_controller` configuration option, set it to "null" and use `framework.error_controller` configuration instead
+
 4.2.0
 -----
 
@@ -9,7 +60,7 @@ CHANGELOG
 4.1.0
 -----
 
- * added priority to Twig extensions 
+ * added priority to Twig extensions
  * deprecated relying on the default value (`false`) of the `twig.strict_variables` configuration option. The `%kernel.debug%` parameter will be the new default in 5.0
 
 4.0.0

@@ -11,24 +11,28 @@
 
 namespace Symfony\Component\Lock\Tests\Store;
 
+use PHPUnit\Framework\SkippedTestSuiteError;
+
 /**
  * @author Jérémy Derussé <jeremy@derusse.com>
  *
  * @requires extension redis
+ *
+ * @group integration
  */
-class RedisClusterStoreTest extends AbstractRedisStoreTest
+class RedisClusterStoreTest extends AbstractRedisStoreTestCase
 {
-    public static function setupBeforeClass()
+    public static function setUpBeforeClass(): void
     {
-        if (!class_exists('RedisCluster')) {
-            self::markTestSkipped('The RedisCluster class is required.');
+        if (!class_exists(\RedisCluster::class)) {
+            throw new SkippedTestSuiteError('The RedisCluster class is required.');
         }
         if (!getenv('REDIS_CLUSTER_HOSTS')) {
-            self::markTestSkipped('REDIS_CLUSTER_HOSTS env var is not defined.');
+            throw new SkippedTestSuiteError('REDIS_CLUSTER_HOSTS env var is not defined.');
         }
     }
 
-    protected function getRedisConnection()
+    protected function getRedisConnection(): \RedisCluster
     {
         return new \RedisCluster(null, explode(' ', getenv('REDIS_CLUSTER_HOSTS')));
     }

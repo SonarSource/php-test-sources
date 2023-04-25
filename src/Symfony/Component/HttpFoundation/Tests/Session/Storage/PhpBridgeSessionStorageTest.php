@@ -23,13 +23,14 @@ use Symfony\Component\HttpFoundation\Session\Storage\PhpBridgeSessionStorage;
  * These tests require separate processes.
  *
  * @runTestsInSeparateProcesses
+ *
  * @preserveGlobalState disabled
  */
 class PhpBridgeSessionStorageTest extends TestCase
 {
     private $savePath;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->iniSet('session.save_handler', 'files');
         $this->iniSet('session.save_path', $this->savePath = sys_get_temp_dir().'/sftest');
@@ -38,21 +39,18 @@ class PhpBridgeSessionStorageTest extends TestCase
         }
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         session_write_close();
         array_map('unlink', glob($this->savePath.'/*'));
         if (is_dir($this->savePath)) {
-            rmdir($this->savePath);
+            @rmdir($this->savePath);
         }
 
         $this->savePath = null;
     }
 
-    /**
-     * @return PhpBridgeSessionStorage
-     */
-    protected function getStorage()
+    protected function getStorage(): PhpBridgeSessionStorage
     {
         $storage = new PhpBridgeSessionStorage();
         $storage->registerBag(new AttributeBag());
@@ -86,10 +84,10 @@ class PhpBridgeSessionStorageTest extends TestCase
         $_SESSION['drak'] = 'loves symfony';
         $storage->getBag('attributes')->set('symfony', 'greatness');
         $key = $storage->getBag('attributes')->getStorageKey();
-        $this->assertEquals($_SESSION[$key], array('symfony' => 'greatness'));
-        $this->assertEquals($_SESSION['drak'], 'loves symfony');
+        $this->assertEquals(['symfony' => 'greatness'], $_SESSION[$key]);
+        $this->assertEquals('loves symfony', $_SESSION['drak']);
         $storage->clear();
-        $this->assertEquals($_SESSION[$key], array());
-        $this->assertEquals($_SESSION['drak'], 'loves symfony');
+        $this->assertEquals([], $_SESSION[$key]);
+        $this->assertEquals('loves symfony', $_SESSION['drak']);
     }
 }

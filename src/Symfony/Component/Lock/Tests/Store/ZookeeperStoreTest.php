@@ -19,16 +19,35 @@ use Symfony\Component\Lock\Store\ZookeeperStore;
  * @author Ganesh Chandrasekaran <gchandrasekaran@wayfair.com>
  *
  * @requires extension zookeeper
+ *
+ * @group integration
  */
-class ZookeeperStoreTest extends AbstractStoreTest
+class ZookeeperStoreTest extends AbstractStoreTestCase
 {
+    use UnserializableTestTrait;
+
     public function getStore(): ZookeeperStore
     {
         $zookeeper_server = getenv('ZOOKEEPER_HOST').':2181';
 
-        $zookeeper = new \Zookeeper(implode(',', array($zookeeper_server)));
+        $zookeeper = new \Zookeeper($zookeeper_server);
 
         return StoreFactory::createStore($zookeeper);
+    }
+
+    /**
+     * @dataProvider provideValidConnectionString
+     */
+    public function testCreateConnection(string $connectionString)
+    {
+        $this->assertInstanceOf(\Zookeeper::class, ZookeeperStore::createConnection($connectionString));
+    }
+
+    public static function provideValidConnectionString(): iterable
+    {
+        yield 'single host' => ['zookeeper://localhost:2181'];
+        yield 'single multiple host' => ['zookeeper://localhost:2181,localhost:2181'];
+        yield 'with extra attributes' => ['zookeeper://localhost:2181/path?option=value'];
     }
 
     public function testSaveSucceedsWhenPathContainsMoreThanOneNode()

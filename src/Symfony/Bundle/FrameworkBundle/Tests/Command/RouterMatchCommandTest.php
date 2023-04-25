@@ -16,35 +16,34 @@ use Symfony\Bundle\FrameworkBundle\Command\RouterDebugCommand;
 use Symfony\Bundle\FrameworkBundle\Command\RouterMatchCommand;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
+use Symfony\Component\Routing\RouterInterface;
 
 class RouterMatchCommandTest extends TestCase
 {
     public function testWithMatchPath()
     {
         $tester = $this->createCommandTester();
-        $ret = $tester->execute(array('path_info' => '/foo', 'foo'), array('decorated' => false));
+        $ret = $tester->execute(['path_info' => '/foo', 'foo'], ['decorated' => false]);
 
         $this->assertEquals(0, $ret, 'Returns 0 in case of success');
-        $this->assertContains('Route Name   | foo', $tester->getDisplay());
+        $this->assertStringContainsString('Route Name   | foo', $tester->getDisplay());
     }
 
     public function testWithNotMatchPath()
     {
         $tester = $this->createCommandTester();
-        $ret = $tester->execute(array('path_info' => '/test', 'foo'), array('decorated' => false));
+        $ret = $tester->execute(['path_info' => '/test', 'foo'], ['decorated' => false]);
 
         $this->assertEquals(1, $ret, 'Returns 1 in case of failure');
-        $this->assertContains('None of the routes match the path "/test"', $tester->getDisplay());
+        $this->assertStringContainsString('None of the routes match the path "/test"', $tester->getDisplay());
     }
 
-    /**
-     * @return CommandTester
-     */
-    private function createCommandTester()
+    private function createCommandTester(): CommandTester
     {
         $application = new Application($this->getKernel());
         $application->add(new RouterMatchCommand($this->getRouter()));
@@ -58,32 +57,26 @@ class RouterMatchCommandTest extends TestCase
         $routeCollection = new RouteCollection();
         $routeCollection->add('foo', new Route('foo'));
         $requestContext = new RequestContext();
-        $router = $this->getMockBuilder('Symfony\Component\Routing\RouterInterface')->getMock();
+        $router = $this->createMock(RouterInterface::class);
         $router
             ->expects($this->any())
             ->method('getRouteCollection')
-            ->will($this->returnValue($routeCollection));
+            ->willReturn($routeCollection);
         $router
             ->expects($this->any())
             ->method('getContext')
-            ->will($this->returnValue($requestContext));
+            ->willReturn($requestContext);
 
         return $router;
     }
 
     private function getKernel()
     {
-        $container = $this->getMockBuilder('Symfony\Component\DependencyInjection\ContainerInterface')->getMock();
+        $container = $this->createMock(ContainerInterface::class);
         $container
             ->expects($this->atLeastOnce())
             ->method('has')
-            ->will($this->returnCallback(function ($id) {
-                if ('console.command_loader' === $id) {
-                    return false;
-                }
-
-                return true;
-            }))
+            ->willReturnCallback(fn ($id) => 'console.command_loader' !== $id)
         ;
         $container
             ->expects($this->any())
@@ -92,7 +85,7 @@ class RouterMatchCommandTest extends TestCase
             ->willReturn($this->getRouter())
         ;
 
-        $kernel = $this->getMockBuilder(KernelInterface::class)->getMock();
+        $kernel = $this->createMock(KernelInterface::class);
         $kernel
             ->expects($this->any())
             ->method('getContainer')
@@ -101,7 +94,7 @@ class RouterMatchCommandTest extends TestCase
         $kernel
             ->expects($this->once())
             ->method('getBundles')
-            ->willReturn(array())
+            ->willReturn([])
         ;
 
         return $kernel;
