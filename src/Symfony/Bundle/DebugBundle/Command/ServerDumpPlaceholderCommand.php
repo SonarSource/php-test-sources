@@ -11,6 +11,7 @@
 
 namespace Symfony\Bundle\DebugBundle\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -25,25 +26,26 @@ use Symfony\Component\VarDumper\Server\DumpServer;
  *
  * @internal
  */
+#[AsCommand(name: 'server:dump', description: 'Start a dump server that collects and displays dumps in a single place')]
 class ServerDumpPlaceholderCommand extends Command
 {
     private $replacedCommand;
 
-    public function __construct(DumpServer $server = null, array $descriptors = array())
+    public function __construct(DumpServer $server = null, array $descriptors = [])
     {
         $this->replacedCommand = new ServerDumpCommand((new \ReflectionClass(DumpServer::class))->newInstanceWithoutConstructor(), $descriptors);
 
         parent::__construct();
     }
 
-    protected function configure()
+    protected function configure(): void
     {
         $this->setDefinition($this->replacedCommand->getDefinition());
         $this->setHelp($this->replacedCommand->getHelp());
         $this->setDescription($this->replacedCommand->getDescription());
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         (new SymfonyStyle($input, $output))->getErrorStyle()->warning('In order to use the VarDumper server, set the "debug.dump_destination" config option to "tcp://%env(VAR_DUMPER_SERVER)%"');
 

@@ -16,8 +16,6 @@ use Symfony\Component\Ldap\Exception\LdapException;
 use Symfony\Component\Ldap\Exception\NotBoundException;
 
 /**
- * Entry manager interface.
- *
  * @author Charles Sarrazin <charles@sarraz.in>
  * @author Bob van de Vijver <bobvandevijver@hotmail.com>
  * @author Kevin Schuurmans <kevin.schuurmans@freshheads.com>
@@ -27,7 +25,7 @@ interface EntryManagerInterface
     /**
      * Adds a new entry in the Ldap server.
      *
-     * @param Entry $entry
+     * @return $this
      *
      * @throws NotBoundException
      * @throws LdapException
@@ -37,7 +35,7 @@ interface EntryManagerInterface
     /**
      * Updates an entry from the Ldap server.
      *
-     * @param Entry $entry
+     * @return $this
      *
      * @throws NotBoundException
      * @throws LdapException
@@ -45,18 +43,29 @@ interface EntryManagerInterface
     public function update(Entry $entry);
 
     /**
+     * Moves an entry on the Ldap server.
+     *
+     * @return $this
+     *
+     * @throws NotBoundException
+     * @throws LdapException
+     */
+    public function move(Entry $entry, string $newParent);
+
+    /**
      * Renames an entry on the Ldap server.
      *
-     * @param Entry  $entry
-     * @param string $newRdn
-     * @param bool   $removeOldRdn
+     * @return $this
+     *
+     * @throws NotBoundException
+     * @throws LdapException
      */
-    public function rename(Entry $entry, $newRdn, $removeOldRdn = true);
+    public function rename(Entry $entry, string $newRdn, bool $removeOldRdn = true);
 
     /**
      * Removes an entry from the Ldap server.
      *
-     * @param Entry $entry
+     * @return $this
      *
      * @throws NotBoundException
      * @throws LdapException

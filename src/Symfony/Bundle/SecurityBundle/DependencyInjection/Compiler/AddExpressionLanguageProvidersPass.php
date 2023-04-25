@@ -23,15 +23,20 @@ use Symfony\Component\DependencyInjection\Reference;
 class AddExpressionLanguageProvidersPass implements CompilerPassInterface
 {
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function process(ContainerBuilder $container)
     {
         if ($container->has('security.expression_language')) {
             $definition = $container->findDefinition('security.expression_language');
             foreach ($container->findTaggedServiceIds('security.expression_language_provider', true) as $id => $attributes) {
-                $definition->addMethodCall('registerProvider', array(new Reference($id)));
+                $definition->addMethodCall('registerProvider', [new Reference($id)]);
             }
+        }
+
+        if (!$container->hasDefinition('cache.system')) {
+            $container->removeDefinition('cache.security_expression_language');
+            $container->removeDefinition('cache.security_is_granted_attribute_expression_language');
         }
     }
 }

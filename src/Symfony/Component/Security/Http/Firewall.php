@@ -11,13 +11,14 @@
 
 namespace Symfony\Component\Security\Http;
 
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\FinishRequestEvent;
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Component\Security\Http\Firewall\AccessListener;
-use Symfony\Component\Security\Http\Firewall\LogoutListener;
+use Symfony\Component\Security\Http\Firewall\ExceptionListener;
+use Symfony\Component\Security\Http\Firewall\FirewallListenerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Firewall uses a FirewallMap to register security listeners for the given
@@ -31,9 +32,13 @@ use Symfony\Component\Security\Http\Firewall\LogoutListener;
  */
 class Firewall implements EventSubscriberInterface
 {
-    private $map;
-    private $dispatcher;
-    private $exceptionListeners;
+    private FirewallMapInterface $map;
+    private EventDispatcherInterface $dispatcher;
+
+    /**
+     * @var \SplObjectStorage<Request, ExceptionListener>
+     */
+    private \SplObjectStorage $exceptionListeners;
 
     public function __construct(FirewallMapInterface $map, EventDispatcherInterface $dispatcher)
     {
@@ -42,19 +47,17 @@ class Firewall implements EventSubscriberInterface
         $this->exceptionListeners = new \SplObjectStorage();
     }
 
-    public function onKernelRequest(GetResponseEvent $event)
+    /**
+     * @return void
+     */
+    public function onKernelRequest(RequestEvent $event)
     {
-        if (!$event->isMasterRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
         // register listeners for this firewall
         $listeners = $this->map->getListeners($event->getRequest());
-
-        if (3 !== \count($listeners)) {
-            @trigger_error(sprintf('Not returning an array of 3 elements from %s::getListeners() is deprecated since Symfony 4.2, the 3rd element must be an instance of %s or null.', FirewallMapInterface::class, LogoutListener::class), E_USER_DEPRECATED);
-            $listeners[2] = null;
-        }
 
         $authenticationListeners = $listeners[0];
         $exceptionListener = $listeners[1];
@@ -65,31 +68,36 @@ class Firewall implements EventSubscriberInterface
             $exceptionListener->register($this->dispatcher);
         }
 
+        // Authentication listeners are pre-sorted by SortFirewallListenersPass
         $authenticationListeners = function () use ($authenticationListeners, $logoutListener) {
-            $accessListener = null;
+            if (null !== $logoutListener) {
+                $logoutListenerPriority = $this->getListenerPriority($logoutListener);
+            }
 
             foreach ($authenticationListeners as $listener) {
-                if ($listener instanceof AccessListener) {
-                    $accessListener = $listener;
+                $listenerPriority = $this->getListenerPriority($listener);
 
-                    continue;
+                // Yielding the LogoutListener at the correct position
+                if (null !== $logoutListener && $listenerPriority < $logoutListenerPriority) {
+                    yield $logoutListener;
+                    $logoutListener = null;
                 }
 
                 yield $listener;
             }
 
+            // When LogoutListener has the lowest priority of all listeners
             if (null !== $logoutListener) {
                 yield $logoutListener;
             }
-
-            if (null !== $accessListener) {
-                yield $accessListener;
-            }
         };
 
-        $this->handleRequest($event, $authenticationListeners());
+        $this->callListeners($event, $authenticationListeners());
     }
 
+    /**
+     * @return void
+     */
     public function onKernelFinishRequest(FinishRequestEvent $event)
     {
         $request = $event->getRequest();
@@ -100,25 +108,30 @@ class Firewall implements EventSubscriberInterface
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public static function getSubscribedEvents()
     {
-        return array(
-            KernelEvents::REQUEST => array('onKernelRequest', 8),
+        return [
+            KernelEvents::REQUEST => ['onKernelRequest', 8],
             KernelEvents::FINISH_REQUEST => 'onKernelFinishRequest',
-        );
+        ];
     }
 
-    protected function handleRequest(GetResponseEvent $event, $listeners)
+    /**
+     * @return void
+     */
+    protected function callListeners(RequestEvent $event, iterable $listeners)
     {
         foreach ($listeners as $listener) {
-            $listener->handle($event);
+            $listener($event);
 
             if ($event->hasResponse()) {
                 break;
             }
         }
+    }
+
+    private function getListenerPriority(object $logoutListener): int
+    {
+        return $logoutListener instanceof FirewallListenerInterface ? $logoutListener->getPriority() : 0;
     }
 }

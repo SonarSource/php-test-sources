@@ -1,8 +1,9 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'php_errors' => array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'php_errors' => [
         'log' => true,
         'throw' => true,
-    ),
-));
+    ],
+]);

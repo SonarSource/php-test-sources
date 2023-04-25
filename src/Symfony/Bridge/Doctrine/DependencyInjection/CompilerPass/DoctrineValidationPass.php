@@ -21,7 +21,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  */
 class DoctrineValidationPass implements CompilerPassInterface
 {
-    private $managerType;
+    private string $managerType;
 
     public function __construct(string $managerType)
     {
@@ -29,7 +29,7 @@ class DoctrineValidationPass implements CompilerPassInterface
     }
 
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function process(ContainerBuilder $container)
     {
@@ -41,18 +41,17 @@ class DoctrineValidationPass implements CompilerPassInterface
      * Gets the validation mapping files for the format and extends them with
      * files matching a doctrine search pattern (Resources/config/validation.orm.xml).
      */
-    private function updateValidatorMappingFiles(ContainerBuilder $container, string $mapping, string $extension)
+    private function updateValidatorMappingFiles(ContainerBuilder $container, string $mapping, string $extension): void
     {
         if (!$container->hasParameter('validator.mapping.loader.'.$mapping.'_files_loader.mapping_files')) {
             return;
         }
 
         $files = $container->getParameter('validator.mapping.loader.'.$mapping.'_files_loader.mapping_files');
-        $validationPath = 'Resources/config/validation.'.$this->managerType.'.'.$extension;
+        $validationPath = '/config/validation.'.$this->managerType.'.'.$extension;
 
-        foreach ($container->getParameter('kernel.bundles') as $bundle) {
-            $reflection = new \ReflectionClass($bundle);
-            if ($container->fileExists($file = \dirname($reflection->getFileName()).'/'.$validationPath)) {
+        foreach ($container->getParameter('kernel.bundles_metadata') as $bundle) {
+            if ($container->fileExists($file = $bundle['path'].'/Resources'.$validationPath) || $container->fileExists($file = $bundle['path'].$validationPath)) {
                 $files[] = $file;
             }
         }

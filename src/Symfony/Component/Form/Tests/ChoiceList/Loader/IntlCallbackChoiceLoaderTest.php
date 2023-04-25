@@ -47,19 +47,15 @@ class IntlCallbackChoiceLoaderTest extends TestCase
      */
     private static $lazyChoiceList;
 
-    public static function setUpBeforeClass()
+    public static function setUpBeforeClass(): void
     {
-        self::$loader = new IntlCallbackChoiceLoader(function () {
-            return self::$choices;
-        });
-        self::$value = function ($choice) {
-            return $choice->value ?? null;
-        };
-        self::$choices = array(
-            (object) array('value' => 'choice_one'),
-            (object) array('value' => 'choice_two'),
-        );
-        self::$choiceValues = array('choice_one', 'choice_two');
+        self::$loader = new IntlCallbackChoiceLoader(fn () => self::$choices);
+        self::$value = fn ($choice) => $choice->value ?? null;
+        self::$choices = [
+            (object) ['value' => 'choice_one'],
+            (object) ['value' => 'choice_two'],
+        ];
+        self::$choiceValues = ['choice_one', 'choice_two'];
         self::$lazyChoiceList = new LazyChoiceList(self::$loader, self::$value);
     }
 
@@ -68,11 +64,19 @@ class IntlCallbackChoiceLoaderTest extends TestCase
         $this->assertInstanceOf(ChoiceListInterface::class, self::$loader->loadChoiceList(self::$value));
     }
 
-    public function testLoadChoiceListOnlyOnce()
+    public function testLoadChoicesOnlyOnce()
     {
-        $loadedChoiceList = self::$loader->loadChoiceList(self::$value);
+        $calls = 0;
+        $loader = new IntlCallbackChoiceLoader(function () use (&$calls) {
+            ++$calls;
 
-        $this->assertSame($loadedChoiceList, self::$loader->loadChoiceList(self::$value));
+            return self::$choices;
+        });
+
+        $loadedChoiceList = $loader->loadChoiceList(self::$value);
+
+        $this->assertNotSame($loadedChoiceList, $loader->loadChoiceList(self::$value));
+        $this->assertSame(1, $calls);
     }
 
     public function testLoadChoicesForValuesLoadsChoiceListOnFirstCall()
@@ -84,6 +88,11 @@ class IntlCallbackChoiceLoaderTest extends TestCase
         );
     }
 
+    public function testLoadChoicesForValuesDropsNonExistentChoices()
+    {
+        $this->assertSame([], self::$loader->loadChoicesForValues(['foo']));
+    }
+
     public function testLoadValuesForChoicesLoadsChoiceListOnFirstCall()
     {
         $this->assertSame(
@@ -93,12 +102,12 @@ class IntlCallbackChoiceLoaderTest extends TestCase
         );
     }
 
-    public static function tearDownAfterClass()
+    public static function tearDownAfterClass(): void
     {
         self::$loader = null;
         self::$value = null;
-        self::$choices = array();
-        self::$choiceValues = array();
+        self::$choices = [];
+        self::$choiceValues = [];
         self::$lazyChoiceList = null;
     }
 }

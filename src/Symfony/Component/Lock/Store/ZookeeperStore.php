@@ -11,29 +11,53 @@
 
 namespace Symfony\Component\Lock\Store;
 
+use Symfony\Component\Lock\Exception\InvalidArgumentException;
 use Symfony\Component\Lock\Exception\LockAcquiringException;
 use Symfony\Component\Lock\Exception\LockConflictedException;
 use Symfony\Component\Lock\Exception\LockReleasingException;
-use Symfony\Component\Lock\Exception\NotSupportedException;
 use Symfony\Component\Lock\Key;
-use Symfony\Component\Lock\StoreInterface;
+use Symfony\Component\Lock\PersistingStoreInterface;
 
 /**
- * ZookeeperStore is a StoreInterface implementation using Zookeeper as store engine.
+ * ZookeeperStore is a PersistingStoreInterface implementation using Zookeeper as store engine.
  *
  * @author Ganesh Chandrasekaran <gchandrasekaran@wayfair.com>
  */
-class ZookeeperStore implements StoreInterface
+class ZookeeperStore implements PersistingStoreInterface
 {
-    private $zookeeper;
+    use ExpiringStoreTrait;
+
+    private \Zookeeper $zookeeper;
 
     public function __construct(\Zookeeper $zookeeper)
     {
         $this->zookeeper = $zookeeper;
     }
 
+    public static function createConnection(#[\SensitiveParameter] string $dsn): \Zookeeper
+    {
+        if (!str_starts_with($dsn, 'zookeeper:')) {
+            throw new InvalidArgumentException('Unsupported DSN for Zookeeper.');
+        }
+
+        if (false === $params = parse_url($dsn)) {
+            throw new InvalidArgumentException('Invalid Zookeeper DSN.');
+        }
+
+        $host = $params['host'] ?? '';
+        $hosts = explode(',', $host);
+
+        foreach ($hosts as $index => $host) {
+            if (isset($params['port'])) {
+                $hosts[$index] = $host.':'.$params['port'];
+            }
+        }
+
+        return new \Zookeeper(implode(',', $hosts));
+    }
+
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function save(Key $key)
     {
@@ -45,10 +69,13 @@ class ZookeeperStore implements StoreInterface
         $token = $this->getUniqueToken($key);
 
         $this->createNewLock($resource, $token);
+        $key->markUnserializable();
+
+        $this->checkNotExpired($key);
     }
 
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function delete(Key $key)
     {
@@ -65,33 +92,22 @@ class ZookeeperStore implements StoreInterface
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function exists(Key $key): bool
     {
         $resource = $this->getKeyResource($key);
         try {
             return $this->zookeeper->get($resource) === $this->getUniqueToken($key);
-        } catch (\ZookeeperException $ex) {
+        } catch (\ZookeeperException) {
             return false;
         }
     }
 
     /**
-     * {@inheritdoc}
+     * @return void
      */
-    public function waitAndSave(Key $key)
+    public function putOffExpiration(Key $key, float $ttl)
     {
-        throw new NotSupportedException();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function putOffExpiration(Key $key, $ttl)
-    {
-        throw new NotSupportedException();
+        // do nothing, zookeeper locks forever.
     }
 
     /**
@@ -103,10 +119,10 @@ class ZookeeperStore implements StoreInterface
      * @throws LockConflictedException
      * @throws LockAcquiringException
      */
-    private function createNewLock(string $node, string $value)
+    private function createNewLock(string $node, string $value): void
     {
         // Default Node Permissions
-        $acl = array(array('perms' => \Zookeeper::PERM_ALL, 'scheme' => 'world', 'id' => 'anyone'));
+        $acl = [['perms' => \Zookeeper::PERM_ALL, 'scheme' => 'world', 'id' => 'anyone']];
         // This ensures that the nodes are deleted when the client session to zookeeper server ends.
         $type = \Zookeeper::EPHEMERAL;
 
@@ -127,8 +143,8 @@ class ZookeeperStore implements StoreInterface
         // For example: foo/bar will become /foo-bar and /foo/bar will become /-foo-bar
         $resource = (string) $key;
 
-        if (false !== \strpos($resource, '/')) {
-            $resource = \strtr($resource, array('/' => '-')).'-'.sha1($resource);
+        if (str_contains($resource, '/')) {
+            $resource = strtr($resource, ['/' => '-']).'-'.sha1($resource);
         }
 
         if ('' === $resource) {

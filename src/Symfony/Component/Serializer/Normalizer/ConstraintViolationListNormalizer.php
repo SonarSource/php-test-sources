@@ -11,6 +11,7 @@
 
 namespace Symfony\Component\Serializer\Normalizer;
 
+use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 use Symfony\Component\Validator\ConstraintViolationListInterface;
 
 /**
@@ -18,28 +19,70 @@ use Symfony\Component\Validator\ConstraintViolationListInterface;
  *
  * This Normalizer implements RFC7807 {@link https://tools.ietf.org/html/rfc7807}.
  *
- *
  * @author Grégoire Pineau <lyrixx@lyrixx.info>
  * @author Kévin Dunglas <dunglas@gmail.com>
+ *
+ * @final since Symfony 6.3
  */
 class ConstraintViolationListNormalizer implements NormalizerInterface, CacheableSupportsMethodInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function normalize($object, $format = null, array $context = array())
-    {
-        $violations = array();
-        $messages = array();
-        foreach ($object as $violation) {
-            $propertyPath = $violation->getPropertyPath();
+    public const INSTANCE = 'instance';
+    public const STATUS = 'status';
+    public const TITLE = 'title';
+    public const TYPE = 'type';
+    public const PAYLOAD_FIELDS = 'payload_fields';
 
-            $violationEntry = array(
+    public function __construct(
+        private readonly array $defaultContext = [],
+        private readonly ?NameConverterInterface $nameConverter = null,
+    ) {
+    }
+
+    public function getSupportedTypes(?string $format): array
+    {
+        return [
+            ConstraintViolationListInterface::class => __CLASS__ === static::class || $this->hasCacheableSupportsMethod(),
+        ];
+    }
+
+    public function normalize(mixed $object, string $format = null, array $context = []): array
+    {
+        if (\array_key_exists(self::PAYLOAD_FIELDS, $context)) {
+            $payloadFieldsToSerialize = $context[self::PAYLOAD_FIELDS];
+        } elseif (\array_key_exists(self::PAYLOAD_FIELDS, $this->defaultContext)) {
+            $payloadFieldsToSerialize = $this->defaultContext[self::PAYLOAD_FIELDS];
+        } else {
+            $payloadFieldsToSerialize = [];
+        }
+
+        if (\is_array($payloadFieldsToSerialize) && [] !== $payloadFieldsToSerialize) {
+            $payloadFieldsToSerialize = array_flip($payloadFieldsToSerialize);
+        }
+
+        $violations = [];
+        $messages = [];
+        foreach ($object as $violation) {
+            $propertyPath = $this->nameConverter ? $this->nameConverter->normalize($violation->getPropertyPath(), null, $format, $context) : $violation->getPropertyPath();
+
+            $violationEntry = [
                 'propertyPath' => $propertyPath,
                 'title' => $violation->getMessage(),
-            );
+                'template' => $violation->getMessageTemplate(),
+                'parameters' => $violation->getParameters(),
+            ];
             if (null !== $code = $violation->getCode()) {
                 $violationEntry['type'] = sprintf('urn:uuid:%s', $code);
+            }
+
+            $constraint = $violation->getConstraint();
+            if (
+                [] !== $payloadFieldsToSerialize
+                && $constraint
+                && $constraint->payload
+                // If some or all payload fields are whitelisted, add them
+                && $payloadFields = null === $payloadFieldsToSerialize || true === $payloadFieldsToSerialize ? $constraint->payload : array_intersect_key($constraint->payload, $payloadFieldsToSerialize)
+            ) {
+                $violationEntry['payload'] = $payloadFields;
             }
 
             $violations[] = $violationEntry;
@@ -48,36 +91,38 @@ class ConstraintViolationListNormalizer implements NormalizerInterface, Cacheabl
             $messages[] = $prefix.$violation->getMessage();
         }
 
-        $result = array(
-            'type' => $context['type'] ?? 'https://symfony.com/errors/validation',
-            'title' => $context['title'] ?? 'Validation Failed',
-        );
-        if (isset($context['status'])) {
-            $result['status'] = $context['status'];
+        $result = [
+            'type' => $context[self::TYPE] ?? $this->defaultContext[self::TYPE] ?? 'https://symfony.com/errors/validation',
+            'title' => $context[self::TITLE] ?? $this->defaultContext[self::TITLE] ?? 'Validation Failed',
+        ];
+        if (null !== $status = ($context[self::STATUS] ?? $this->defaultContext[self::STATUS] ?? null)) {
+            $result['status'] = $status;
         }
         if ($messages) {
             $result['detail'] = implode("\n", $messages);
         }
-        if (isset($context['instance'])) {
-            $result['instance'] = $context['instance'];
+        if (null !== $instance = ($context[self::INSTANCE] ?? $this->defaultContext[self::INSTANCE] ?? null)) {
+            $result['instance'] = $instance;
         }
 
-        return $result + array('violations' => $violations);
+        return $result + ['violations' => $violations];
     }
 
     /**
-     * {@inheritdoc}
+     * @param array $context
      */
-    public function supportsNormalization($data, $format = null)
+    public function supportsNormalization(mixed $data, string $format = null /* , array $context = [] */): bool
     {
         return $data instanceof ConstraintViolationListInterface;
     }
 
     /**
-     * {@inheritdoc}
+     * @deprecated since Symfony 6.3, use "getSupportedTypes()" instead
      */
     public function hasCacheableSupportsMethod(): bool
     {
-        return __CLASS__ === \get_class($this);
+        trigger_deprecation('symfony/serializer', '6.3', 'The "%s()" method is deprecated, use "getSupportedTypes()" instead.', __METHOD__);
+
+        return __CLASS__ === static::class;
     }
 }

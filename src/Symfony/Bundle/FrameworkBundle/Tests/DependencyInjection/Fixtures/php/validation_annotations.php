@@ -1,9 +1,12 @@
 <?php
 
-$container->loadFromExtension('framework', array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
     'secret' => 's3cr3t',
-    'validation' => array(
+    'validation' => [
         'enabled' => true,
         'enable_annotations' => true,
-    ),
-));
+    ],
+]);
+
+$container->setAlias('validator.alias', 'validator')->setPublic(true);

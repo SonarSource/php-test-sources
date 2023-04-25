@@ -19,7 +19,6 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Debug\Exception\FatalThrowableError;
 use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Symfony\Component\HttpKernel\Kernel;
@@ -30,9 +29,9 @@ use Symfony\Component\HttpKernel\KernelInterface;
  */
 class Application extends BaseApplication
 {
-    private $kernel;
-    private $commandsRegistered = false;
-    private $registrationErrors = array();
+    private KernelInterface $kernel;
+    private bool $commandsRegistered = false;
+    private array $registrationErrors = [];
 
     public function __construct(KernelInterface $kernel)
     {
@@ -42,17 +41,25 @@ class Application extends BaseApplication
 
         $inputDefinition = $this->getDefinition();
         $inputDefinition->addOption(new InputOption('--env', '-e', InputOption::VALUE_REQUIRED, 'The Environment name.', $kernel->getEnvironment()));
-        $inputDefinition->addOption(new InputOption('--no-debug', null, InputOption::VALUE_NONE, 'Switches off debug mode.'));
+        $inputDefinition->addOption(new InputOption('--no-debug', null, InputOption::VALUE_NONE, 'Switch off debug mode.'));
     }
 
     /**
      * Gets the Kernel associated with this Console.
-     *
-     * @return KernelInterface A KernelInterface instance
      */
-    public function getKernel()
+    public function getKernel(): KernelInterface
     {
         return $this->kernel;
+    }
+
+    /**
+     * @return void
+     */
+    public function reset()
+    {
+        if ($this->kernel->getContainer()->has('services_resetter')) {
+            $this->kernel->getContainer()->get('services_resetter')->reset();
+        }
     }
 
     /**
@@ -60,38 +67,25 @@ class Application extends BaseApplication
      *
      * @return int 0 if everything went fine, or an error code
      */
-    public function doRun(InputInterface $input, OutputInterface $output)
+    public function doRun(InputInterface $input, OutputInterface $output): int
     {
-        if ($input->hasParameterOption(array('-e', '--env'), true)) {
-            @trigger_error('The "--env" option and its "-e" shortcut are deprecated since Symfony 4.2. Set the "APP_ENV" environment variable instead.', E_USER_DEPRECATED);
-        }
-
-        if ($input->hasParameterOption('--no-debug', true)) {
-            @trigger_error('The "--no-debug" option is deprecated since Symfony 4.2. Set the "APP_DEBUG" environment variable to "0" instead.', E_USER_DEPRECATED);
-        }
-
-        $this->kernel->boot();
-
-        $this->setDispatcher($this->kernel->getContainer()->get('event_dispatcher'));
-
         $this->registerCommands();
 
         if ($this->registrationErrors) {
             $this->renderRegistrationErrors($input, $output);
         }
 
+        $this->setDispatcher($this->kernel->getContainer()->get('event_dispatcher'));
+
         return parent::doRun($input, $output);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function doRunCommand(Command $command, InputInterface $input, OutputInterface $output)
+    protected function doRunCommand(Command $command, InputInterface $input, OutputInterface $output): int
     {
         if (!$command instanceof ListCommand) {
             if ($this->registrationErrors) {
                 $this->renderRegistrationErrors($input, $output);
-                $this->registrationErrors = array();
+                $this->registrationErrors = [];
             }
 
             return parent::doRunCommand($command, $input, $output);
@@ -101,26 +95,20 @@ class Application extends BaseApplication
 
         if ($this->registrationErrors) {
             $this->renderRegistrationErrors($input, $output);
-            $this->registrationErrors = array();
+            $this->registrationErrors = [];
         }
 
         return $returnCode;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function find($name)
+    public function find(string $name): Command
     {
         $this->registerCommands();
 
         return parent::find($name);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function get($name)
+    public function get(string $name): Command
     {
         $this->registerCommands();
 
@@ -133,31 +121,28 @@ class Application extends BaseApplication
         return $command;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function all($namespace = null)
+    public function all(string $namespace = null): array
     {
         $this->registerCommands();
 
         return parent::all($namespace);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getLongVersion()
+    public function getLongVersion(): string
     {
-        return parent::getLongVersion().sprintf(' (env: <comment>%s</>, debug: <comment>%s</>)', $this->kernel->getEnvironment(), $this->kernel->isDebug() ? 'true' : 'false');
+        return parent::getLongVersion().sprintf(' (env: <comment>%s</>, debug: <comment>%s</>) <bg=#0057B7;fg=#FFDD00>#StandWith</><bg=#FFDD00;fg=#0057B7>Ukraine</> <href=https://sf.to/ukraine>https://sf.to/ukraine</>', $this->kernel->getEnvironment(), $this->kernel->isDebug() ? 'true' : 'false');
     }
 
-    public function add(Command $command)
+    public function add(Command $command): ?Command
     {
         $this->registerCommands();
 
         return parent::add($command);
     }
 
+    /**
+     * @return void
+     */
     protected function registerCommands()
     {
         if ($this->commandsRegistered) {
@@ -174,10 +159,8 @@ class Application extends BaseApplication
             if ($bundle instanceof Bundle) {
                 try {
                     $bundle->registerCommands($this);
-                } catch (\Exception $e) {
-                    $this->registrationErrors[] = $e;
                 } catch (\Throwable $e) {
-                    $this->registrationErrors[] = new FatalThrowableError($e);
+                    $this->registrationErrors[] = $e;
                 }
             }
         }
@@ -187,22 +170,20 @@ class Application extends BaseApplication
         }
 
         if ($container->hasParameter('console.command.ids')) {
-            $lazyCommandIds = $container->hasParameter('console.lazy_command.ids') ? $container->getParameter('console.lazy_command.ids') : array();
+            $lazyCommandIds = $container->hasParameter('console.lazy_command.ids') ? $container->getParameter('console.lazy_command.ids') : [];
             foreach ($container->getParameter('console.command.ids') as $id) {
                 if (!isset($lazyCommandIds[$id])) {
                     try {
                         $this->add($container->get($id));
-                    } catch (\Exception $e) {
-                        $this->registrationErrors[] = $e;
                     } catch (\Throwable $e) {
-                        $this->registrationErrors[] = new FatalThrowableError($e);
+                        $this->registrationErrors[] = $e;
                     }
                 }
             }
         }
     }
 
-    private function renderRegistrationErrors(InputInterface $input, OutputInterface $output)
+    private function renderRegistrationErrors(InputInterface $input, OutputInterface $output): void
     {
         if ($output instanceof ConsoleOutputInterface) {
             $output = $output->getErrorOutput();
@@ -211,7 +192,7 @@ class Application extends BaseApplication
         (new SymfonyStyle($input, $output))->warning('Some commands could not be registered:');
 
         foreach ($this->registrationErrors as $error) {
-            $this->doRenderException($error, $output);
+            $this->doRenderThrowable($error, $output);
         }
     }
 }

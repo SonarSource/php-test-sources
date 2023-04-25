@@ -24,8 +24,8 @@ use Symfony\Component\DependencyInjection\Reference;
  * The compiler pass is meant to register the mappings with the metadata
  * chain driver corresponding to one of the object managers.
  *
- * For concrete implementations that are easy to use, see the
- * RegisterXyMappingsPass classes in the DoctrineBundle resp.
+ * For concrete implementations, see the RegisterXyMappingsPass classes
+ * in the DoctrineBundle resp.
  * DoctrineMongodbBundle, DoctrineCouchdbBundle and DoctrinePhpcrBundle.
  *
  * @author David Buchmann <david@liip.ch>
@@ -50,7 +50,7 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
     /**
      * List of potential container parameters that hold the object manager name
      * to register the mappings with the correct metadata driver, for example
-     * array('acme.manager', 'doctrine.default_entity_manager').
+     * ['acme.manager', 'doctrine.default_entity_manager'].
      *
      * @var string[]
      */
@@ -76,25 +76,21 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
     /**
      * Naming pattern for the configuration service id, for example
      * 'doctrine.orm.%s_configuration'.
-     *
-     * @var string
      */
-    private $configurationPattern;
+    private string $configurationPattern;
 
     /**
      * Method name to call on the configuration service. This depends on the
      * Doctrine implementation. For example addEntityNamespace.
-     *
-     * @var string
      */
-    private $registerAliasMethodName;
+    private string $registerAliasMethodName;
 
     /**
      * Map of alias to namespace.
      *
      * @var string[]
      */
-    private $aliasMap;
+    private array $aliasMap;
 
     /**
      * The $managerParameters is an ordered list of container parameters that could provide the
@@ -117,7 +113,7 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
      *                                                      register alias
      * @param string[]             $aliasMap                Map of alias to namespace
      */
-    public function __construct($driver, array $namespaces, array $managerParameters, string $driverPattern, $enabledParameter = false, string $configurationPattern = '', string $registerAliasMethodName = '', array $aliasMap = array())
+    public function __construct(Definition|Reference $driver, array $namespaces, array $managerParameters, string $driverPattern, string|false $enabledParameter = false, string $configurationPattern = '', string $registerAliasMethodName = '', array $aliasMap = [])
     {
         $this->driver = $driver;
         $this->namespaces = $namespaces;
@@ -125,7 +121,7 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
         $this->driverPattern = $driverPattern;
         $this->enabledParameter = $enabledParameter;
         if (\count($aliasMap) && (!$configurationPattern || !$registerAliasMethodName)) {
-            throw new \InvalidArgumentException('configurationPattern and registerAliasMethodName are required to register namespace alias');
+            throw new \InvalidArgumentException('configurationPattern and registerAliasMethodName are required to register namespace alias.');
         }
         $this->configurationPattern = $configurationPattern;
         $this->registerAliasMethodName = $registerAliasMethodName;
@@ -134,6 +130,8 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
 
     /**
      * Register mappings and alias with the metadata drivers.
+     *
+     * @return void
      */
     public function process(ContainerBuilder $container)
     {
@@ -143,10 +141,10 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
 
         $mappingDriverDef = $this->getDriver($container);
         $chainDriverDefService = $this->getChainDriverServiceName($container);
-        // Definition for a Doctrine\Common\Persistence\Mapping\Driver\MappingDriverChain
+        // Definition for a Doctrine\Persistence\Mapping\Driver\MappingDriverChain
         $chainDriverDef = $container->getDefinition($chainDriverDefService);
         foreach ($this->namespaces as $namespace) {
-            $chainDriverDef->addMethodCall('addDriver', array($mappingDriverDef, $namespace));
+            $chainDriverDef->addMethodCall('addDriver', [$mappingDriverDef, $namespace]);
         }
 
         if (!\count($this->aliasMap)) {
@@ -157,7 +155,7 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
         // Definition of the Doctrine\...\Configuration class specific to the Doctrine flavour.
         $configurationServiceDefinition = $container->getDefinition($configurationServiceName);
         foreach ($this->aliasMap as $alias => $namespace) {
-            $configurationServiceDefinition->addMethodCall($this->registerAliasMethodName, array($alias, $namespace));
+            $configurationServiceDefinition->addMethodCall($this->registerAliasMethodName, [$alias, $namespace]);
         }
     }
 
@@ -165,12 +163,10 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
      * Get the service name of the metadata chain driver that the mappings
      * should be registered with.
      *
-     * @return string The name of the chain driver service
-     *
      * @throws InvalidArgumentException if non of the managerParameters has a
      *                                  non-empty value
      */
-    protected function getChainDriverServiceName(ContainerBuilder $container)
+    protected function getChainDriverServiceName(ContainerBuilder $container): string
     {
         return sprintf($this->driverPattern, $this->getManagerName($container));
     }
@@ -180,10 +176,8 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
      *
      * @param ContainerBuilder $container Passed on in case an extending class
      *                                    needs access to the container
-     *
-     * @return Definition|Reference the metadata driver to add to all chain drivers
      */
-    protected function getDriver(ContainerBuilder $container)
+    protected function getDriver(ContainerBuilder $container): Definition|Reference
     {
         return $this->driver;
     }
@@ -191,12 +185,10 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
     /**
      * Get the service name from the pattern and the configured manager name.
      *
-     * @return string a service definition name
-     *
      * @throws InvalidArgumentException if none of the managerParameters has a
      *                                  non-empty value
      */
-    private function getConfigurationServiceName(ContainerBuilder $container)
+    private function getConfigurationServiceName(ContainerBuilder $container): string
     {
         return sprintf($this->configurationPattern, $this->getManagerName($container));
     }
@@ -207,11 +199,9 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
      * The default implementation loops over the managerParameters and returns
      * the first non-empty parameter.
      *
-     * @return string The name of the active manager
-     *
      * @throws InvalidArgumentException if none of the managerParameters is found in the container
      */
-    private function getManagerName(ContainerBuilder $container)
+    private function getManagerName(ContainerBuilder $container): string
     {
         foreach ($this->managerParameters as $param) {
             if ($container->hasParameter($param)) {
@@ -222,10 +212,7 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
             }
         }
 
-        throw new InvalidArgumentException(sprintf(
-            'Could not find the manager name parameter in the container. Tried the following parameter names: "%s"',
-            implode('", "', $this->managerParameters)
-        ));
+        throw new InvalidArgumentException(sprintf('Could not find the manager name parameter in the container. Tried the following parameter names: "%s".', implode('", "', $this->managerParameters)));
     }
 
     /**
@@ -234,10 +221,8 @@ abstract class RegisterMappingsPass implements CompilerPassInterface
      *
      * This default implementation checks if the class has the enabledParameter
      * configured and if so if that parameter is present in the container.
-     *
-     * @return bool whether this compiler pass really should register the mappings
      */
-    protected function enabled(ContainerBuilder $container)
+    protected function enabled(ContainerBuilder $container): bool
     {
         return !$this->enabledParameter || $container->hasParameter($this->enabledParameter);
     }

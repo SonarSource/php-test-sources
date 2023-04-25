@@ -12,15 +12,19 @@
 namespace Symfony\Bridge\Monolog\Tests\Processor;
 
 use Monolog\Logger;
+use Monolog\LogRecord;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Monolog\Processor\WebProcessor;
+use Symfony\Bridge\Monolog\Tests\RecordFactory;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 class WebProcessorTest extends TestCase
 {
     public function testUsesRequestServerData()
     {
-        list($event, $server) = $this->createRequestEvent();
+        [$event, $server] = $this->createRequestEvent();
 
         $processor = new WebProcessor();
         $processor->onKernelRequest($event);
@@ -36,8 +40,8 @@ class WebProcessorTest extends TestCase
 
     public function testUseRequestClientIp()
     {
-        Request::setTrustedProxies(array('192.168.0.1'), Request::HEADER_X_FORWARDED_ALL);
-        list($event, $server) = $this->createRequestEvent(array('X_FORWARDED_FOR' => '192.168.0.2'));
+        Request::setTrustedProxies(['192.168.0.1'], Request::HEADER_X_FORWARDED_FOR);
+        [$event, $server] = $this->createRequestEvent(['X_FORWARDED_FOR' => '192.168.0.2']);
 
         $processor = new WebProcessor();
         $processor->onKernelRequest($event);
@@ -50,7 +54,7 @@ class WebProcessorTest extends TestCase
         $this->assertEquals($server['SERVER_NAME'], $record['extra']['server']);
         $this->assertEquals($server['HTTP_REFERER'], $record['extra']['referrer']);
 
-        Request::setTrustedProxies(array(), -1);
+        Request::setTrustedProxies([], -1);
     }
 
     public function testCanBeConstructedWithExtraFields()
@@ -59,9 +63,9 @@ class WebProcessorTest extends TestCase
             $this->markTestSkipped('WebProcessor of the installed Monolog version does not support $extraFields parameter');
         }
 
-        list($event, $server) = $this->createRequestEvent();
+        [$event, $server] = $this->createRequestEvent();
 
-        $processor = new WebProcessor(array('url', 'referrer'));
+        $processor = new WebProcessor(['url', 'referrer']);
         $processor->onKernelRequest($event);
         $record = $processor($this->getRecord());
 
@@ -70,16 +74,16 @@ class WebProcessorTest extends TestCase
         $this->assertEquals($server['HTTP_REFERER'], $record['extra']['referrer']);
     }
 
-    private function createRequestEvent($additionalServerParameters = array()): array
+    private function createRequestEvent(array $additionalServerParameters = []): array
     {
         $server = array_merge(
-            array(
+            [
                 'REQUEST_URI' => 'A',
                 'REMOTE_ADDR' => '192.168.0.1',
                 'REQUEST_METHOD' => 'C',
                 'SERVER_NAME' => 'D',
                 'HTTP_REFERER' => 'E',
-            ),
+            ],
             $additionalServerParameters
         );
 
@@ -87,35 +91,19 @@ class WebProcessorTest extends TestCase
         $request->server->replace($server);
         $request->headers->replace($server);
 
-        $event = $this->getMockBuilder('Symfony\Component\HttpKernel\Event\GetResponseEvent')
-            ->disableOriginalConstructor()
-            ->getMock();
-        $event->expects($this->any())
-            ->method('isMasterRequest')
-            ->will($this->returnValue(true));
-        $event->expects($this->any())
-            ->method('getRequest')
-            ->will($this->returnValue($request));
+        $event = new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST);
 
-        return array($event, $server);
+        return [$event, $server];
     }
 
-    private function getRecord(int $level = Logger::WARNING, string $message = 'test'): array
+    private function getRecord(int $level = Logger::WARNING, string $message = 'test'): array|LogRecord
     {
-        return array(
-            'message' => $message,
-            'context' => array(),
-            'level' => $level,
-            'level_name' => Logger::getLevelName($level),
-            'channel' => 'test',
-            'datetime' => new \DateTime(),
-            'extra' => array(),
-        );
+        return RecordFactory::create($level, $message);
     }
 
     private function isExtraFieldsSupported()
     {
-        $monologWebProcessorClass = new \ReflectionClass('Monolog\Processor\WebProcessor');
+        $monologWebProcessorClass = new \ReflectionClass(\Monolog\Processor\WebProcessor::class);
 
         foreach ($monologWebProcessorClass->getConstructor()->getParameters() as $parameter) {
             if ('extraFields' === $parameter->getName()) {

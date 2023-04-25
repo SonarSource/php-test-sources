@@ -12,10 +12,10 @@
 namespace Symfony\Bundle\FrameworkBundle\CacheWarmer;
 
 use Psr\Container\ContainerInterface;
-use Symfony\Component\DependencyInjection\ServiceSubscriberInterface;
 use Symfony\Component\HttpKernel\CacheWarmer\CacheWarmerInterface;
 use Symfony\Component\HttpKernel\CacheWarmer\WarmableInterface;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Contracts\Service\ServiceSubscriberInterface;
 
 /**
  * Generates the router matcher and generator classes.
@@ -26,7 +26,7 @@ use Symfony\Component\Routing\RouterInterface;
  */
 class RouterCacheWarmer implements CacheWarmerInterface, ServiceSubscriberInterface
 {
-    private $container;
+    private ContainerInterface $container;
 
     public function __construct(ContainerInterface $container)
     {
@@ -34,41 +34,26 @@ class RouterCacheWarmer implements CacheWarmerInterface, ServiceSubscriberInterf
         $this->container = $container;
     }
 
-    /**
-     * Warms up the cache.
-     *
-     * @param string $cacheDir The cache directory
-     */
-    public function warmUp($cacheDir)
+    public function warmUp(string $cacheDir): array
     {
         $router = $this->container->get('router');
 
         if ($router instanceof WarmableInterface) {
-            $router->warmUp($cacheDir);
-
-            return;
+            return (array) $router->warmUp($cacheDir);
         }
 
-        @trigger_error(sprintf('Passing a %s without implementing %s is deprecated since Symfony 4.1.', RouterInterface::class, WarmableInterface::class), \E_USER_DEPRECATED);
+        throw new \LogicException(sprintf('The router "%s" cannot be warmed up because it does not implement "%s".', get_debug_type($router), WarmableInterface::class));
     }
 
-    /**
-     * Checks whether this warmer is optional or not.
-     *
-     * @return bool always true
-     */
-    public function isOptional()
+    public function isOptional(): bool
     {
         return true;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function getSubscribedServices()
+    public static function getSubscribedServices(): array
     {
-        return array(
+        return [
             'router' => RouterInterface::class,
-        );
+        ];
     }
 }

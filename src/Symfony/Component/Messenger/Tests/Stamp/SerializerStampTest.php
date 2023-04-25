@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\Component\Messenger\Tests\Asynchronous\Serialization;
+namespace Symfony\Component\Messenger\Tests\Stamp;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Stamp\SerializerStamp;
@@ -22,7 +22,7 @@ class SerializerStampTest extends TestCase
 {
     public function testSerializable()
     {
-        $stamp = new SerializerStamp(array(ObjectNormalizer::GROUPS => array('Default', 'Extra')));
+        $stamp = new SerializerStamp([ObjectNormalizer::GROUPS => ['Default', 'Extra']]);
 
         $this->assertEquals($stamp, unserialize(serialize($stamp)));
     }

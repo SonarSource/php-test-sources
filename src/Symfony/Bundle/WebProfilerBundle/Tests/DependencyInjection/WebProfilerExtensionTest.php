@@ -17,8 +17,16 @@ use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\ErrorHandler\ErrorRenderer\HtmlErrorRenderer;
 use Symfony\Component\EventDispatcher\DependencyInjection\RegisterListenersPass;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\HttpKernel\DataCollector\DumpDataCollector;
+use Symfony\Component\HttpKernel\KernelInterface;
+use Symfony\Component\HttpKernel\Profiler\Profiler;
+use Symfony\Component\HttpKernel\Profiler\ProfilerStorageInterface;
+use Symfony\Component\Routing\RouterInterface;
+use Twig\Environment;
+use Twig\Loader\ArrayLoader;
 
 class WebProfilerExtensionTest extends TestCase
 {
@@ -28,12 +36,12 @@ class WebProfilerExtensionTest extends TestCase
      */
     private $container;
 
-    public static function assertSaneContainer(Container $container, $message = '', $knownPrivates = array())
+    public static function assertSaneContainer(Container $container)
     {
-        $errors = array();
-        $knownPrivates[] = 'debug.file_link_formatter.url_format';
+        $removedIds = $container->getRemovedIds();
+        $errors = [];
         foreach ($container->getServiceIds() as $id) {
-            if (\in_array($id, $knownPrivates, true)) { // for BC with 3.4
+            if (isset($removedIds[$id])) {
                 continue;
             }
             try {
@@ -43,37 +51,44 @@ class WebProfilerExtensionTest extends TestCase
             }
         }
 
-        self::assertEquals(array(), $errors, $message);
+        self::assertSame([], $errors);
     }
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
-        $this->kernel = $this->getMockBuilder('Symfony\\Component\\HttpKernel\\KernelInterface')->getMock();
+        $this->kernel = $this->createMock(KernelInterface::class);
+
+        $profiler = $this->createMock(Profiler::class);
+        $profilerStorage = $this->createMock(ProfilerStorageInterface::class);
+        $router = $this->createMock(RouterInterface::class);
 
         $this->container = new ContainerBuilder();
+        $this->container->register('data_collector.dump', DumpDataCollector::class)->setPublic(true);
+        $this->container->register('error_handler.error_renderer.html', HtmlErrorRenderer::class)->setPublic(true);
         $this->container->register('event_dispatcher', EventDispatcher::class)->setPublic(true);
-        $this->container->register('router', $this->getMockClass('Symfony\\Component\\Routing\\RouterInterface'))->setPublic(true);
-        $this->container->register('twig', 'Twig\Environment')->setPublic(true);
-        $this->container->register('twig_loader', 'Twig\Loader\ArrayLoader')->addArgument(array())->setPublic(true);
-        $this->container->register('twig', 'Twig\Environment')->addArgument(new Reference('twig_loader'))->setPublic(true);
-        $this->container->setParameter('kernel.bundles', array());
+        $this->container->register('router', $router::class)->setPublic(true);
+        $this->container->register('twig', Environment::class)->setPublic(true);
+        $this->container->register('twig_loader', ArrayLoader::class)->addArgument([])->setPublic(true);
+        $this->container->register('twig', Environment::class)->addArgument(new Reference('twig_loader'))->setPublic(true);
+        $this->container->setParameter('kernel.bundles', []);
         $this->container->setParameter('kernel.cache_dir', __DIR__);
+        $this->container->setParameter('kernel.build_dir', __DIR__);
         $this->container->setParameter('kernel.debug', false);
         $this->container->setParameter('kernel.project_dir', __DIR__);
         $this->container->setParameter('kernel.charset', 'UTF-8');
         $this->container->setParameter('debug.file_link_format', null);
-        $this->container->setParameter('profiler.class', array('Symfony\\Component\\HttpKernel\\Profiler\\Profiler'));
-        $this->container->register('profiler', $this->getMockClass('Symfony\\Component\\HttpKernel\\Profiler\\Profiler'))
+        $this->container->setParameter('profiler.class', [Profiler::class]);
+        $this->container->register('profiler', $profiler::class)
             ->setPublic(true)
-            ->addArgument(new Definition($this->getMockClass('Symfony\\Component\\HttpKernel\\Profiler\\ProfilerStorageInterface')));
-        $this->container->setParameter('data_collector.templates', array());
+            ->addArgument(new Definition($profilerStorage::class));
+        $this->container->setParameter('data_collector.templates', []);
         $this->container->set('kernel', $this->kernel);
         $this->container->addCompilerPass(new RegisterListenersPass());
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         parent::tearDown();
 
@@ -89,38 +104,103 @@ class WebProfilerExtensionTest extends TestCase
         $this->container->setParameter('kernel.debug', $debug);
 
         $extension = new WebProfilerExtension();
-        $extension->load(array(array()), $this->container);
+        $extension->load([[]], $this->container);
+        $this->container->removeDefinition('web_profiler.controller.exception');
 
         $this->assertFalse($this->container->has('web_profiler.debug_toolbar'));
 
-        $this->assertSaneContainer($this->getCompiledContainer());
+        self::assertSaneContainer($this->getCompiledContainer());
+    }
+
+    public static function getDebugModes()
+    {
+        return [
+            ['debug' => false],
+            ['debug' => true],
+        ];
     }
 
     /**
-     * @dataProvider getDebugModes
+     * @dataProvider getToolbarConfig
      */
-    public function testToolbarConfig($toolbarEnabled, $interceptRedirects, $listenerInjected, $listenerEnabled)
+    public function testToolbarConfig(bool $toolbarEnabled, bool $listenerInjected, bool $listenerEnabled)
     {
         $extension = new WebProfilerExtension();
-        $extension->load(array(array('toolbar' => $toolbarEnabled, 'intercept_redirects' => $interceptRedirects)), $this->container);
+        $extension->load([['toolbar' => $toolbarEnabled]], $this->container);
+        $this->container->removeDefinition('web_profiler.controller.exception');
 
         $this->assertSame($listenerInjected, $this->container->has('web_profiler.debug_toolbar'));
 
-        $this->assertSaneContainer($this->getCompiledContainer(), '', array('web_profiler.csp.handler'));
+        self::assertSaneContainer($this->getCompiledContainer());
 
         if ($listenerInjected) {
             $this->assertSame($listenerEnabled, $this->container->get('web_profiler.debug_toolbar')->isEnabled());
         }
     }
 
-    public function getDebugModes()
+    public static function getToolbarConfig()
     {
-        return array(
-            array(false, false, false, false),
-            array(true,  false, true,  true),
-            array(false, true,  true,  false),
-            array(true,  true,  true,  true),
+        return [
+            [
+                'toolbarEnabled' => false,
+                'listenerInjected' => false,
+                'listenerEnabled' => false,
+            ],
+            [
+                'toolbarEnabled' => true,
+                'listenerInjected' => true,
+                'listenerEnabled' => true,
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider getInterceptRedirectsToolbarConfig
+     */
+    public function testToolbarConfigUsingInterceptRedirects(
+        bool $toolbarEnabled,
+        bool $interceptRedirects,
+        bool $listenerInjected,
+        bool $listenerEnabled
+    ) {
+        $extension = new WebProfilerExtension();
+        $extension->load(
+            [['toolbar' => $toolbarEnabled, 'intercept_redirects' => $interceptRedirects]],
+            $this->container
         );
+        $this->container->removeDefinition('web_profiler.controller.exception');
+
+        $this->assertSame($listenerInjected, $this->container->has('web_profiler.debug_toolbar'));
+
+        self::assertSaneContainer($this->getCompiledContainer());
+
+        if ($listenerInjected) {
+            $this->assertSame($listenerEnabled, $this->container->get('web_profiler.debug_toolbar')->isEnabled());
+        }
+    }
+
+    public static function getInterceptRedirectsToolbarConfig()
+    {
+        return [
+             [
+                 'toolbarEnabled' => false,
+                 'interceptRedirects' => true,
+                 'listenerInjected' => true,
+                 'listenerEnabled' => false,
+            ],
+            [
+                'toolbarEnabled' => false,
+                'interceptRedirects' => false,
+                'listenerInjected' => false,
+                'listenerEnabled' => false,
+            ],
+            [
+                'toolbarEnabled' => true,
+                'interceptRedirects' => true,
+                'listenerInjected' => true,
+                'listenerEnabled' => true,
+            ],
+        ];
     }
 
     private function getCompiledContainer()

@@ -14,12 +14,12 @@ namespace Symfony\Component\Routing\Tests\Loader;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Routing\Loader\AnnotationDirectoryLoader;
 
-class AnnotationDirectoryLoaderTest extends AbstractAnnotationLoaderTest
+class AnnotationDirectoryLoaderTest extends AbstractAnnotationLoaderTestCase
 {
     protected $loader;
     protected $reader;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -29,18 +29,18 @@ class AnnotationDirectoryLoaderTest extends AbstractAnnotationLoaderTest
 
     public function testLoad()
     {
-        $this->reader->expects($this->exactly(3))->method('getClassAnnotation');
+        $this->reader->expects($this->exactly(4))->method('getClassAnnotation');
 
         $this->reader
             ->expects($this->any())
             ->method('getMethodAnnotations')
-            ->will($this->returnValue(array()))
+            ->willReturn([])
         ;
 
         $this->reader
             ->expects($this->any())
             ->method('getClassAnnotations')
-            ->will($this->returnValue(array()))
+            ->willReturn([])
         ;
 
         $this->loader->load(__DIR__.'/../Fixtures/AnnotatedClasses');
@@ -48,22 +48,23 @@ class AnnotationDirectoryLoaderTest extends AbstractAnnotationLoaderTest
 
     public function testLoadIgnoresHiddenDirectories()
     {
-        $this->expectAnnotationsToBeReadFrom(array(
+        $this->expectAnnotationsToBeReadFrom([
             'Symfony\Component\Routing\Tests\Fixtures\AnnotatedClasses\BarClass',
             'Symfony\Component\Routing\Tests\Fixtures\AnnotatedClasses\BazClass',
             'Symfony\Component\Routing\Tests\Fixtures\AnnotatedClasses\FooClass',
-        ));
+            'Symfony\Component\Routing\Tests\Fixtures\AnnotatedClasses\EncodingClass',
+        ]);
 
         $this->reader
             ->expects($this->any())
             ->method('getMethodAnnotations')
-            ->will($this->returnValue(array()))
+            ->willReturn([])
         ;
 
         $this->reader
             ->expects($this->any())
             ->method('getClassAnnotations')
-            ->will($this->returnValue(array()))
+            ->willReturn([])
         ;
 
         $this->loader->load(__DIR__.'/../Fixtures/AnnotatedClasses');
@@ -77,6 +78,7 @@ class AnnotationDirectoryLoaderTest extends AbstractAnnotationLoaderTest
         $this->assertFalse($this->loader->supports('foo.foo'), '->supports() returns true if the resource is loadable');
 
         $this->assertTrue($this->loader->supports($fixturesDir, 'annotation'), '->supports() checks the resource type if specified');
+        $this->assertTrue($this->loader->supports($fixturesDir, 'attribute'), '->supports() checks the resource type if specified');
         $this->assertFalse($this->loader->supports($fixturesDir, 'foo'), '->supports() checks the resource type if specified');
     }
 
@@ -92,18 +94,24 @@ class AnnotationDirectoryLoaderTest extends AbstractAnnotationLoaderTest
         $this->reader
             ->expects($this->any())
             ->method('getMethodAnnotations')
-            ->will($this->returnValue(array()))
+            ->willReturn([])
         ;
 
         $this->loader->load(__DIR__.'/../Fixtures/AnnotatedClasses/FooClass.php');
+    }
+
+    public function testLoadAbstractClass()
+    {
+        $this->reader->expects($this->never())->method('getClassAnnotation');
+        $this->reader->expects($this->never())->method('getMethodAnnotations');
+
+        $this->loader->load(__DIR__.'/../Fixtures/AnnotatedClasses/AbstractClass.php');
     }
 
     private function expectAnnotationsToBeReadFrom(array $classes)
     {
         $this->reader->expects($this->exactly(\count($classes)))
             ->method('getClassAnnotation')
-            ->with($this->callback(function (\ReflectionClass $class) use ($classes) {
-                return \in_array($class->getName(), $classes);
-            }));
+            ->with($this->callback(fn (\ReflectionClass $class) => \in_array($class->getName(), $classes)));
     }
 }

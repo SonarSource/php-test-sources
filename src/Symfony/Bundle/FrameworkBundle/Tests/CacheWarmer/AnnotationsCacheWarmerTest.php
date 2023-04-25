@@ -1,22 +1,32 @@
 <?php
 
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Symfony\Bundle\FrameworkBundle\Tests\CacheWarmer;
 
 use Doctrine\Common\Annotations\AnnotationReader;
-use Doctrine\Common\Annotations\CachedReader;
+use Doctrine\Common\Annotations\PsrCachedReader;
 use Doctrine\Common\Annotations\Reader;
+use PHPUnit\Framework\MockObject\MockObject;
 use Symfony\Bundle\FrameworkBundle\CacheWarmer\AnnotationsCacheWarmer;
 use Symfony\Bundle\FrameworkBundle\Tests\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\NullAdapter;
 use Symfony\Component\Cache\Adapter\PhpArrayAdapter;
-use Symfony\Component\Cache\DoctrineProvider;
 use Symfony\Component\Filesystem\Filesystem;
 
 class AnnotationsCacheWarmerTest extends TestCase
 {
     private $cacheDir;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->cacheDir = sys_get_temp_dir().'/'.uniqid();
         $fs = new Filesystem();
@@ -24,7 +34,7 @@ class AnnotationsCacheWarmerTest extends TestCase
         parent::setUp();
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         $fs = new Filesystem();
         $fs->remove($this->cacheDir);
@@ -33,7 +43,7 @@ class AnnotationsCacheWarmerTest extends TestCase
 
     public function testAnnotationsCacheWarmerWithDebugDisabled()
     {
-        file_put_contents($this->cacheDir.'/annotations.map', sprintf('<?php return %s;', var_export(array(__CLASS__), true)));
+        file_put_contents($this->cacheDir.'/annotations.map', sprintf('<?php return %s;', var_export([__CLASS__], true)));
         $cacheFile = tempnam($this->cacheDir, __FUNCTION__);
         $reader = new AnnotationReader();
         $warmer = new AnnotationsCacheWarmer($reader, $cacheFile);
@@ -41,9 +51,9 @@ class AnnotationsCacheWarmerTest extends TestCase
         $this->assertFileExists($cacheFile);
 
         // Assert cache is valid
-        $reader = new CachedReader(
+        $reader = new PsrCachedReader(
             $this->getReadOnlyReader(),
-            new DoctrineProvider(new PhpArrayAdapter($cacheFile, new NullAdapter()))
+            new PhpArrayAdapter($cacheFile, new NullAdapter())
         );
         $refClass = new \ReflectionClass($this);
         $reader->getClassAnnotations($refClass);
@@ -53,16 +63,18 @@ class AnnotationsCacheWarmerTest extends TestCase
 
     public function testAnnotationsCacheWarmerWithDebugEnabled()
     {
-        file_put_contents($this->cacheDir.'/annotations.map', sprintf('<?php return %s;', var_export(array(__CLASS__), true)));
+        file_put_contents($this->cacheDir.'/annotations.map', sprintf('<?php return %s;', var_export([__CLASS__], true)));
         $cacheFile = tempnam($this->cacheDir, __FUNCTION__);
         $reader = new AnnotationReader();
         $warmer = new AnnotationsCacheWarmer($reader, $cacheFile, null, true);
         $warmer->warmUp($this->cacheDir);
         $this->assertFileExists($cacheFile);
+
         // Assert cache is valid
-        $reader = new CachedReader(
+        $phpArrayAdapter = new PhpArrayAdapter($cacheFile, new NullAdapter());
+        $reader = new PsrCachedReader(
             $this->getReadOnlyReader(),
-            new DoctrineProvider(new PhpArrayAdapter($cacheFile, new NullAdapter())),
+            $phpArrayAdapter,
             true
         );
         $refClass = new \ReflectionClass($this);
@@ -72,11 +84,85 @@ class AnnotationsCacheWarmerTest extends TestCase
     }
 
     /**
-     * @return \PHPUnit_Framework_MockObject_MockObject|Reader
+     * Test that the cache warming process is not broken if a class loader
+     * throws an exception (on class / file not found for example).
      */
-    private function getReadOnlyReader()
+    public function testClassAutoloadException()
     {
-        $readerMock = $this->getMockBuilder('Doctrine\Common\Annotations\Reader')->getMock();
+        $this->assertFalse(class_exists($annotatedClass = 'C\C\C', false));
+
+        file_put_contents($this->cacheDir.'/annotations.map', sprintf('<?php return %s;', var_export([$annotatedClass], true)));
+        $warmer = new AnnotationsCacheWarmer(new AnnotationReader(), tempnam($this->cacheDir, __FUNCTION__));
+
+        spl_autoload_register($classLoader = function ($class) use ($annotatedClass) {
+            if ($class === $annotatedClass) {
+                throw new \DomainException('This exception should be caught by the warmer.');
+            }
+        }, true, true);
+
+        $warmer->warmUp($this->cacheDir);
+
+        spl_autoload_unregister($classLoader);
+    }
+
+    /**
+     * Test that the cache warming process is broken if a class loader throws an
+     * exception but that is unrelated to the class load.
+     */
+    public function testClassAutoloadExceptionWithUnrelatedException()
+    {
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('This exception should not be caught by the warmer.');
+
+        $this->assertFalse(class_exists($annotatedClass = 'AClassThatDoesNotExist_FWB_CacheWarmer_AnnotationsCacheWarmerTest', false));
+
+        file_put_contents($this->cacheDir.'/annotations.map', sprintf('<?php return %s;', var_export([$annotatedClass], true)));
+        $warmer = new AnnotationsCacheWarmer(new AnnotationReader(), tempnam($this->cacheDir, __FUNCTION__));
+
+        spl_autoload_register($classLoader = function ($class) use ($annotatedClass) {
+            if ($class === $annotatedClass) {
+                eval('class '.$annotatedClass.'{}');
+                throw new \DomainException('This exception should not be caught by the warmer.');
+            }
+        }, true, true);
+
+        $warmer->warmUp($this->cacheDir);
+
+        spl_autoload_unregister($classLoader);
+    }
+
+    public function testWarmupRemoveCacheMisses()
+    {
+        $cacheFile = tempnam($this->cacheDir, __FUNCTION__);
+        $warmer = $this->getMockBuilder(AnnotationsCacheWarmer::class)
+            ->setConstructorArgs([new AnnotationReader(), $cacheFile])
+            ->onlyMethods(['doWarmUp'])
+            ->getMock();
+
+        $warmer->method('doWarmUp')->willReturnCallback(function ($cacheDir, ArrayAdapter $arrayAdapter) {
+            $arrayAdapter->getItem('foo_miss');
+
+            $item = $arrayAdapter->getItem('bar_hit');
+            $item->set('data');
+            $arrayAdapter->save($item);
+
+            $item = $arrayAdapter->getItem('baz_hit_null');
+            $item->set(null);
+            $arrayAdapter->save($item);
+
+            return true;
+        });
+
+        $warmer->warmUp($this->cacheDir);
+        $data = include $cacheFile;
+
+        $this->assertCount(1, $data[0]);
+        $this->assertTrue(isset($data[0]['bar_hit']));
+    }
+
+    private function getReadOnlyReader(): MockObject&Reader
+    {
+        $readerMock = $this->createMock(Reader::class);
         $readerMock->expects($this->exactly(0))->method('getClassAnnotations');
         $readerMock->expects($this->exactly(0))->method('getClassAnnotation');
         $readerMock->expects($this->exactly(0))->method('getMethodAnnotations');

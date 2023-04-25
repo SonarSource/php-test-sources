@@ -15,8 +15,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
  * @author Bernhard Schussek <bschussek@gmail.com>
- *
- * @method static iterable getExtendedTypes() Gets the extended types - not implementing it is deprecated since Symfony 4.2
  */
 interface FormTypeExtensionInterface
 {
@@ -25,6 +23,10 @@ interface FormTypeExtensionInterface
      *
      * This method is called after the extended type has built the form to
      * further modify it.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return void
      *
      * @see FormTypeInterface::buildForm()
      */
@@ -36,6 +38,10 @@ interface FormTypeExtensionInterface
      * This method is called after the extended type has built the view to
      * further modify it.
      *
+     * @param array<string, mixed> $options
+     *
+     * @return void
+     *
      * @see FormTypeInterface::buildView()
      */
     public function buildView(FormView $view, FormInterface $form, array $options);
@@ -46,23 +52,23 @@ interface FormTypeExtensionInterface
      * This method is called after the extended type has finished the view to
      * further modify it.
      *
+     * @param array<string, mixed> $options
+     *
+     * @return void
+     *
      * @see FormTypeInterface::finishView()
      */
     public function finishView(FormView $view, FormInterface $form, array $options);
 
     /**
-     * Configures the options for this type.
-     *
-     * @param OptionsResolver $resolver The resolver for the options
+     * @return void
      */
     public function configureOptions(OptionsResolver $resolver);
 
     /**
-     * Returns the name of the type being extended.
+     * Gets the extended types.
      *
-     * @return string The name of the type being extended
-     *
-     * @deprecated since Symfony 4.2, use getExtendedTypes() instead.
+     * @return string[]
      */
-    public function getExtendedType();
+    public static function getExtendedTypes(): iterable;
 }

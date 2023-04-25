@@ -20,77 +20,52 @@ use Symfony\Component\Form\Exception\InvalidArgumentException;
  */
 class PreloadedExtension implements FormExtensionInterface
 {
-    private $types = array();
-    private $typeExtensions = array();
-    private $typeGuesser;
+    private array $types = [];
+    private array $typeExtensions = [];
+    private ?FormTypeGuesserInterface $typeGuesser;
 
     /**
      * Creates a new preloaded extension.
      *
      * @param FormTypeInterface[]            $types          The types that the extension should support
      * @param FormTypeExtensionInterface[][] $typeExtensions The type extensions that the extension should support
-     * @param FormTypeGuesserInterface|null  $typeGuesser    The guesser that the extension should support
      */
     public function __construct(array $types, array $typeExtensions, FormTypeGuesserInterface $typeGuesser = null)
     {
-        foreach ($typeExtensions as $extensions) {
-            foreach ($extensions as $typeExtension) {
-                if (!method_exists($typeExtension, 'getExtendedTypes')) {
-                    @trigger_error(sprintf('Not implementing the static getExtendedTypes() method in %s when implementing the %s is deprecated since Symfony 4.2. The method will be added to the interface in 5.0.', \get_class($typeExtension), FormTypeExtensionInterface::class), E_USER_DEPRECATED);
-                }
-            }
-        }
-
         $this->typeExtensions = $typeExtensions;
         $this->typeGuesser = $typeGuesser;
 
         foreach ($types as $type) {
-            $this->types[\get_class($type)] = $type;
+            $this->types[$type::class] = $type;
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getType($name)
+    public function getType(string $name): FormTypeInterface
     {
         if (!isset($this->types[$name])) {
-            throw new InvalidArgumentException(sprintf('The type "%s" can not be loaded by this extension', $name));
+            throw new InvalidArgumentException(sprintf('The type "%s" cannot be loaded by this extension.', $name));
         }
 
         return $this->types[$name];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function hasType($name)
+    public function hasType(string $name): bool
     {
         return isset($this->types[$name]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getTypeExtensions($name)
+    public function getTypeExtensions(string $name): array
     {
-        return isset($this->typeExtensions[$name])
-            ? $this->typeExtensions[$name]
-            : array();
+        return $this->typeExtensions[$name]
+            ?? [];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function hasTypeExtensions($name)
+    public function hasTypeExtensions(string $name): bool
     {
         return !empty($this->typeExtensions[$name]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getTypeGuesser()
+    public function getTypeGuesser(): ?FormTypeGuesserInterface
     {
         return $this->typeGuesser;
     }

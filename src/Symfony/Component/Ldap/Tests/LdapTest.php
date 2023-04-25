@@ -11,29 +11,31 @@
 
 namespace Symfony\Component\Ldap\Tests;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Ldap\Adapter\AdapterInterface;
 use Symfony\Component\Ldap\Adapter\ConnectionInterface;
+use Symfony\Component\Ldap\Adapter\QueryInterface;
 use Symfony\Component\Ldap\Exception\DriverNotFoundException;
 use Symfony\Component\Ldap\Ldap;
 
 class LdapTest extends TestCase
 {
-    /** @var \PHPUnit_Framework_MockObject_MockObject */
+    /** @var MockObject&AdapterInterface */
     private $adapter;
 
     /** @var Ldap */
     private $ldap;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->adapter = $this->getMockBuilder(AdapterInterface::class)->getMock();
+        $this->adapter = $this->createMock(AdapterInterface::class);
         $this->ldap = new Ldap($this->adapter);
     }
 
     public function testLdapBind()
     {
-        $connection = $this->getMockBuilder(ConnectionInterface::class)->getMock();
+        $connection = $this->createMock(ConnectionInterface::class);
         $connection
             ->expects($this->once())
             ->method('bind')
@@ -42,7 +44,7 @@ class LdapTest extends TestCase
         $this->adapter
             ->expects($this->once())
             ->method('getConnection')
-            ->will($this->returnValue($connection))
+            ->willReturn($connection)
         ;
         $this->ldap->bind('foo', 'bar');
     }
@@ -52,9 +54,11 @@ class LdapTest extends TestCase
         $this->adapter
             ->expects($this->once())
             ->method('escape')
-            ->with('foo', 'bar', 'baz')
+            ->with('foo', 'bar', 0)
+            ->willReturn('')
         ;
-        $this->ldap->escape('foo', 'bar', 'baz');
+
+        $this->ldap->escape('foo', 'bar', 0);
     }
 
     public function testLdapQuery()
@@ -62,9 +66,10 @@ class LdapTest extends TestCase
         $this->adapter
             ->expects($this->once())
             ->method('createQuery')
-            ->with('foo', 'bar', array('baz'))
+            ->with('foo', 'bar', ['baz'])
+            ->willReturn($this->createMock(QueryInterface::class))
         ;
-        $this->ldap->query('foo', 'bar', array('baz'));
+        $this->ldap->query('foo', 'bar', ['baz']);
     }
 
     /**
@@ -78,7 +83,7 @@ class LdapTest extends TestCase
 
     public function testCreateWithInvalidAdapterName()
     {
-        $this->{method_exists($this, $_ = 'expectException') ? $_ : 'setExpectedException'}(DriverNotFoundException::class);
+        $this->expectException(DriverNotFoundException::class);
         Ldap::create('foo');
     }
 }

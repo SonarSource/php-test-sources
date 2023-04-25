@@ -11,10 +11,10 @@
 
 namespace Symfony\Bundle\FrameworkBundle\Routing;
 
-use Symfony\Bundle\FrameworkBundle\Controller\ControllerNameParser;
 use Symfony\Component\Config\Exception\LoaderLoadException;
 use Symfony\Component\Config\Loader\DelegatingLoader as BaseDelegatingLoader;
 use Symfony\Component\Config\Loader\LoaderResolverInterface;
+use Symfony\Component\Routing\RouteCollection;
 
 /**
  * DelegatingLoader delegates route loading to other loaders using a loader resolver.
@@ -23,29 +23,24 @@ use Symfony\Component\Config\Loader\LoaderResolverInterface;
  * to the fully-qualified form (from a:b:c to class::method).
  *
  * @author Fabien Potencier <fabien@symfony.com>
+ *
+ * @final
  */
 class DelegatingLoader extends BaseDelegatingLoader
 {
-    protected $parser;
-    private $loading = false;
-    private $defaultOptions;
+    private bool $loading = false;
+    private array $defaultOptions;
+    private array $defaultRequirements;
 
-    /**
-     * @param ControllerNameParser    $parser   A ControllerNameParser instance
-     * @param LoaderResolverInterface $resolver A LoaderResolverInterface instance
-     */
-    public function __construct(ControllerNameParser $parser, LoaderResolverInterface $resolver, array $defaultOptions = array())
+    public function __construct(LoaderResolverInterface $resolver, array $defaultOptions = [], array $defaultRequirements = [])
     {
-        $this->parser = $parser;
         $this->defaultOptions = $defaultOptions;
+        $this->defaultRequirements = $defaultRequirements;
 
         parent::__construct($resolver);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function load($resource, $type = null)
+    public function load(mixed $resource, string $type = null): RouteCollection
     {
         if ($this->loading) {
             // This can happen if a fatal error occurs in parent::load().
@@ -60,11 +55,11 @@ class DelegatingLoader extends BaseDelegatingLoader
             //   the fatal error from occurring a second time,
             //   otherwise the PHP process would be killed immediately;
             // - while rendering the exception page, the router can be required
-            //   (by e.g. the web profiler that needs to generate an URL);
+            //   (by e.g. the web profiler that needs to generate a URL);
             // - this handles the case and prevents the second fatal error
             //   by triggering an exception beforehand.
 
-            throw new LoaderLoadException($resource, null, null, null, $type);
+            throw new LoaderLoadException($resource, null, 0, null, $type);
         }
         $this->loading = true;
 
@@ -78,29 +73,15 @@ class DelegatingLoader extends BaseDelegatingLoader
             if ($this->defaultOptions) {
                 $route->setOptions($route->getOptions() + $this->defaultOptions);
             }
+            if ($this->defaultRequirements) {
+                $route->setRequirements($route->getRequirements() + $this->defaultRequirements);
+            }
             if (!\is_string($controller = $route->getDefault('_controller'))) {
                 continue;
             }
 
-            if (false !== strpos($controller, '::')) {
+            if (str_contains($controller, '::')) {
                 continue;
-            }
-
-            if (2 === substr_count($controller, ':')) {
-                $deprecatedNotation = $controller;
-
-                try {
-                    $controller = $this->parser->parse($controller, false);
-
-                    @trigger_error(sprintf('Referencing controllers with %s is deprecated since Symfony 4.1, use "%s" instead.', $deprecatedNotation, $controller), E_USER_DEPRECATED);
-                } catch (\InvalidArgumentException $e) {
-                    // unable to optimize unknown notation
-                }
-            }
-
-            if (1 === substr_count($controller, ':')) {
-                $nonDeprecatedNotation = str_replace(':', '::', $controller);
-                @trigger_error(sprintf('Referencing controllers with a single colon is deprecated since Symfony 4.1, use "%s" instead.', $nonDeprecatedNotation), E_USER_DEPRECATED);
             }
 
             $route->setDefault('_controller', $controller);

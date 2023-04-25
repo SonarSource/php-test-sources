@@ -18,6 +18,8 @@ use Symfony\Component\Form\Exception\TransformationFailedException;
  *
  * @author Bernhard Schussek <bschussek@gmail.com>
  * @author Florian Eckerstorfer <florian@eckerstorfer.org>
+ *
+ * @extends BaseDateTimeTransformer<int|numeric-string>
  */
 class DateTimeToTimestampTransformer extends BaseDateTimeTransformer
 {
@@ -26,14 +28,12 @@ class DateTimeToTimestampTransformer extends BaseDateTimeTransformer
      *
      * @param \DateTimeInterface $dateTime A DateTimeInterface object
      *
-     * @return int A timestamp
-     *
      * @throws TransformationFailedException If the given value is not a \DateTimeInterface
      */
-    public function transform($dateTime)
+    public function transform(mixed $dateTime): ?int
     {
         if (null === $dateTime) {
-            return;
+            return null;
         }
 
         if (!$dateTime instanceof \DateTimeInterface) {
@@ -48,15 +48,13 @@ class DateTimeToTimestampTransformer extends BaseDateTimeTransformer
      *
      * @param string $value A timestamp
      *
-     * @return \DateTime A \DateTime object
-     *
      * @throws TransformationFailedException If the given value is not a timestamp
      *                                       or if the given timestamp is invalid
      */
-    public function reverseTransform($value)
+    public function reverseTransform(mixed $value): ?\DateTime
     {
         if (null === $value) {
-            return;
+            return null;
         }
 
         if (!is_numeric($value)) {

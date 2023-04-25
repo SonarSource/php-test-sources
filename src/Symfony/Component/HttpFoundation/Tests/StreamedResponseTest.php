@@ -19,7 +19,7 @@ class StreamedResponseTest extends TestCase
 {
     public function testConstructor()
     {
-        $response = new StreamedResponse(function () { echo 'foo'; }, 404, array('Content-Type' => 'text/plain'));
+        $response = new StreamedResponse(function () { echo 'foo'; }, 404, ['Content-Type' => 'text/plain']);
 
         $this->assertEquals(404, $response->getStatusCode());
         $this->assertEquals('text/plain', $response->headers->get('Content-Type'));
@@ -51,7 +51,7 @@ class StreamedResponseTest extends TestCase
 
     public function testPrepareWithHeadRequest()
     {
-        $response = new StreamedResponse(function () { echo 'foo'; }, 200, array('Content-Length' => '123'));
+        $response = new StreamedResponse(function () { echo 'foo'; }, 200, ['Content-Length' => '123']);
         $request = Request::create('/', 'HEAD');
 
         $response->prepare($request);
@@ -61,7 +61,7 @@ class StreamedResponseTest extends TestCase
 
     public function testPrepareWithCacheHeaders()
     {
-        $response = new StreamedResponse(function () { echo 'foo'; }, 200, array('Cache-Control' => 'max-age=600, public'));
+        $response = new StreamedResponse(function () { echo 'foo'; }, 200, ['Cache-Control' => 'max-age=600, public']);
         $request = Request::create('/', 'GET');
 
         $response->prepare($request);
@@ -81,20 +81,16 @@ class StreamedResponseTest extends TestCase
         $this->assertEquals(1, $called);
     }
 
-    /**
-     * @expectedException \LogicException
-     */
     public function testSendContentWithNonCallable()
     {
+        $this->expectException(\LogicException::class);
         $response = new StreamedResponse(null);
         $response->sendContent();
     }
 
-    /**
-     * @expectedException \LogicException
-     */
     public function testSetContent()
     {
+        $this->expectException(\LogicException::class);
         $response = new StreamedResponse(function () { echo 'foo'; });
         $response->setContent('foo');
     }
@@ -105,40 +101,38 @@ class StreamedResponseTest extends TestCase
         $this->assertFalse($response->getContent());
     }
 
-    public function testCreate()
-    {
-        $response = StreamedResponse::create(function () {}, 204);
-
-        $this->assertInstanceOf('Symfony\Component\HttpFoundation\StreamedResponse', $response);
-        $this->assertEquals(204, $response->getStatusCode());
-    }
-
     public function testReturnThis()
     {
         $response = new StreamedResponse(function () {});
-        $this->assertInstanceOf('Symfony\Component\HttpFoundation\StreamedResponse', $response->sendContent());
-        $this->assertInstanceOf('Symfony\Component\HttpFoundation\StreamedResponse', $response->sendContent());
+        $this->assertInstanceOf(StreamedResponse::class, $response->sendContent());
+        $this->assertInstanceOf(StreamedResponse::class, $response->sendContent());
 
         $response = new StreamedResponse(function () {});
-        $this->assertInstanceOf('Symfony\Component\HttpFoundation\StreamedResponse', $response->sendHeaders());
-        $this->assertInstanceOf('Symfony\Component\HttpFoundation\StreamedResponse', $response->sendHeaders());
+        $this->assertInstanceOf(StreamedResponse::class, $response->sendHeaders());
+        $this->assertInstanceOf(StreamedResponse::class, $response->sendHeaders());
     }
 
     public function testSetNotModified()
     {
         $response = new StreamedResponse(function () { echo 'foo'; });
         $modified = $response->setNotModified();
-        $this->assertObjectHasAttribute('headers', $modified);
-        $this->assertObjectHasAttribute('content', $modified);
-        $this->assertObjectHasAttribute('version', $modified);
-        $this->assertObjectHasAttribute('statusCode', $modified);
-        $this->assertObjectHasAttribute('statusText', $modified);
-        $this->assertObjectHasAttribute('charset', $modified);
+        $this->assertSame($response, $modified);
         $this->assertEquals(304, $modified->getStatusCode());
 
         ob_start();
         $modified->sendContent();
         $string = ob_get_clean();
         $this->assertEmpty($string);
+    }
+
+    public function testSendInformationalResponse()
+    {
+        $response = new StreamedResponse();
+        $response->sendHeaders(103);
+
+        // Informational responses must not override the main status code
+        $this->assertSame(200, $response->getStatusCode());
+
+        $response->sendHeaders();
     }
 }

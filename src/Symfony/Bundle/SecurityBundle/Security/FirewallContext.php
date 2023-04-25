@@ -22,44 +22,49 @@ use Symfony\Component\Security\Http\Firewall\LogoutListener;
  */
 class FirewallContext
 {
-    private $listeners;
-    private $exceptionListener;
-    private $logoutListener;
-    private $config;
+    private iterable $listeners;
+    private ?ExceptionListener $exceptionListener;
+    private ?LogoutListener $logoutListener;
+    private ?FirewallConfig $config;
 
     /**
-     * @param LogoutListener|null $logoutListener
+     * @param iterable<mixed, callable> $listeners
      */
-    public function __construct(iterable $listeners, ExceptionListener $exceptionListener = null, $logoutListener = null, FirewallConfig $config = null)
+    public function __construct(iterable $listeners, ExceptionListener $exceptionListener = null, LogoutListener $logoutListener = null, FirewallConfig $config = null)
     {
         $this->listeners = $listeners;
         $this->exceptionListener = $exceptionListener;
-        if ($logoutListener instanceof FirewallConfig) {
-            $this->config = $logoutListener;
-            @trigger_error(sprintf('Passing an instance of %s as the 3rd argument to "%s()" is deprecated since Symfony 4.2. Pass a %s instance instead.', FirewallConfig::class, __METHOD__, LogoutListener::class), E_USER_DEPRECATED);
-        } elseif (null === $logoutListener || $logoutListener instanceof LogoutListener) {
-            $this->logoutListener = $logoutListener;
-            $this->config = $config;
-        } else {
-            throw new \InvalidArgumentException(sprintf('Argument 3 passed to %s() must be instance of %s or null, %s given.', __METHOD__, LogoutListener::class, \is_object($logoutListener) ? \get_class($logoutListener) : \gettype($logoutListener)));
-        }
+        $this->logoutListener = $logoutListener;
+        $this->config = $config;
     }
 
+    /**
+     * @return FirewallConfig|null
+     */
     public function getConfig()
     {
         return $this->config;
     }
 
+    /**
+     * @return iterable<mixed, callable>
+     */
     public function getListeners(): iterable
     {
         return $this->listeners;
     }
 
+    /**
+     * @return ExceptionListener|null
+     */
     public function getExceptionListener()
     {
         return $this->exceptionListener;
     }
 
+    /**
+     * @return LogoutListener|null
+     */
     public function getLogoutListener()
     {
         return $this->logoutListener;

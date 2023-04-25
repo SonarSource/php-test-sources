@@ -18,13 +18,7 @@ namespace Symfony\Component\Serializer\NameConverter;
  */
 interface AdvancedNameConverterInterface extends NameConverterInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function normalize($propertyName, string $class = null, string $format = null, array $context = array());
+    public function normalize(string $propertyName, string $class = null, string $format = null, array $context = []): string;
 
-    /**
-     * {@inheritdoc}
-     */
-    public function denormalize($propertyName, string $class = null, string $format = null, array $context = array());
+    public function denormalize(string $propertyName, string $class = null, string $format = null, array $context = []): string;
 }

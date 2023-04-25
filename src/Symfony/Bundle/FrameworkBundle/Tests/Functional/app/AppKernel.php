@@ -12,8 +12,12 @@
 namespace Symfony\Bundle\FrameworkBundle\Tests\Functional\app;
 
 use Psr\Log\NullLogger;
+use Symfony\Bundle\FrameworkBundle\Tests\Functional\Extension\TestDumpExtension;
+use Symfony\Component\Config\Definition\Builder\TreeBuilder;
+use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpKernel\Kernel;
 
@@ -22,7 +26,7 @@ use Symfony\Component\HttpKernel\Kernel;
  *
  * @author Johannes M. Schmitt <schmittjoh@gmail.com>
  */
-class AppKernel extends Kernel
+class AppKernel extends Kernel implements ExtensionInterface, ConfigurationInterface
 {
     private $varDir;
     private $testCase;
@@ -45,7 +49,7 @@ class AppKernel extends Kernel
         parent::__construct($environment, $debug);
     }
 
-    public function registerBundles()
+    public function registerBundles(): iterable
     {
         if (!file_exists($filename = $this->getProjectDir().'/'.$this->testCase.'/bundles.php')) {
             throw new \RuntimeException(sprintf('The bundles file "%s" does not exist.', $filename));
@@ -54,47 +58,81 @@ class AppKernel extends Kernel
         return include $filename;
     }
 
-    public function getProjectDir()
+    public function getProjectDir(): string
     {
         return __DIR__;
     }
 
-    public function getCacheDir()
+    public function getCacheDir(): string
     {
         return sys_get_temp_dir().'/'.$this->varDir.'/'.$this->testCase.'/cache/'.$this->environment;
     }
 
-    public function getLogDir()
+    public function getLogDir(): string
     {
         return sys_get_temp_dir().'/'.$this->varDir.'/'.$this->testCase.'/logs';
     }
 
-    public function registerContainerConfiguration(LoaderInterface $loader)
+    public function registerContainerConfiguration(LoaderInterface $loader): void
     {
         $loader->load($this->rootConfig);
     }
 
-    protected function build(ContainerBuilder $container)
+    protected function build(ContainerBuilder $container): void
     {
         $container->register('logger', NullLogger::class);
+        $container->registerExtension(new TestDumpExtension());
     }
 
-    public function serialize()
+    public function __sleep(): array
     {
-        return serialize(array($this->varDir, $this->testCase, $this->rootConfig, $this->getEnvironment(), $this->isDebug()));
+        return ['varDir', 'testCase', 'rootConfig', 'environment', 'debug'];
     }
 
-    public function unserialize($str)
+    public function __wakeup()
     {
-        $a = unserialize($str);
-        $this->__construct($a[0], $a[1], $a[2], $a[3], $a[4]);
+        foreach ($this as $k => $v) {
+            if (\is_object($v)) {
+                throw new \BadMethodCallException('Cannot unserialize '.__CLASS__);
+            }
+        }
+
+        $this->__construct($this->varDir, $this->testCase, $this->rootConfig, $this->environment, $this->debug);
     }
 
-    protected function getKernelParameters()
+    protected function getKernelParameters(): array
     {
         $parameters = parent::getKernelParameters();
         $parameters['kernel.test_case'] = $this->testCase;
 
         return $parameters;
+    }
+
+    public function getConfigTreeBuilder(): TreeBuilder
+    {
+        $treeBuilder = new TreeBuilder('foo');
+        $rootNode = $treeBuilder->getRootNode();
+        $rootNode->children()->scalarNode('foo')->defaultValue('bar')->end()->end();
+
+        return $treeBuilder;
+    }
+
+    public function load(array $configs, ContainerBuilder $container): void
+    {
+    }
+
+    public function getNamespace(): string
+    {
+        return '';
+    }
+
+    public function getXsdValidationBasePath(): string|false
+    {
+        return false;
+    }
+
+    public function getAlias(): string
+    {
+        return 'foo';
     }
 }

@@ -27,10 +27,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  */
 abstract class ConfigurableExtension extends Extension
 {
-    /**
-     * {@inheritdoc}
-     */
-    final public function load(array $configs, ContainerBuilder $container)
+    final public function load(array $configs, ContainerBuilder $container): void
     {
         $this->loadInternal($this->processConfiguration($this->getConfiguration($configs, $container), $configs), $container);
     }

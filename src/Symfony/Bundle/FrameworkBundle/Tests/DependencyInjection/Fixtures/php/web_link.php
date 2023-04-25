@@ -1,5 +1,6 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'web_link' => array('enabled' => true),
-));
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'web_link' => ['enabled' => true],
+]);

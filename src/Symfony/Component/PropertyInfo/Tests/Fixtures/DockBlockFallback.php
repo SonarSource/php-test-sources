@@ -1,7 +1,5 @@
 <?php
 
-namespace Symfony\Component\PropertyInfo\Tests\Fixtures;
-
 /*
  * This file is part of the Symfony package.
  *
@@ -14,7 +12,7 @@ namespace Symfony\Component\PropertyInfo\Tests\Fixtures;
 namespace Symfony\Component\PropertyInfo\Tests\Fixtures;
 
 /**
- * PhpDocExtractor should fallback from property -> accessor -> mutator when looking up dockblocks.
+ * PhpDocExtractor should fallback from property -> accessor -> mutator when looking up docblocks.
  *
  * @author Martin Rademacher <mano@radebatz.net>
  */
@@ -39,7 +37,7 @@ class DockBlockFallback
     /**
      * @return int
      */
-    public function getProtAcc()
+    public function getProtAcc(): int
     {
         return $this->protAcc;
     }

@@ -18,6 +18,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Form\FormBuilder;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
+use Symfony\Component\Form\FormFactoryInterface;
 
 class MergeDoctrineCollectionListenerTest extends TestCase
 {
@@ -28,16 +29,16 @@ class MergeDoctrineCollectionListenerTest extends TestCase
     private $factory;
     private $form;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->collection = new ArrayCollection(array('test'));
+        $this->collection = new ArrayCollection(['test']);
         $this->dispatcher = new EventDispatcher();
-        $this->factory = $this->getMockBuilder('Symfony\Component\Form\FormFactoryInterface')->getMock();
+        $this->factory = $this->createMock(FormFactoryInterface::class);
         $this->form = $this->getBuilder()
             ->getForm();
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         $this->collection = null;
         $this->dispatcher = null;
@@ -45,14 +46,14 @@ class MergeDoctrineCollectionListenerTest extends TestCase
         $this->form = null;
     }
 
-    protected function getBuilder($name = 'name')
+    protected function getBuilder()
     {
-        return new FormBuilder($name, null, $this->dispatcher, $this->factory);
+        return new FormBuilder('name', null, $this->dispatcher, $this->factory);
     }
 
-    protected function getForm($name = 'name')
+    protected function getForm()
     {
-        return $this->getBuilder($name)
+        return $this->getBuilder()
             ->setData($this->collection)
             ->addEventSubscriber(new MergeDoctrineCollectionListener())
             ->getForm();
@@ -60,10 +61,10 @@ class MergeDoctrineCollectionListenerTest extends TestCase
 
     public function testOnSubmitDoNothing()
     {
-        $submittedData = array('test');
+        $submittedData = ['test'];
         $event = new FormEvent($this->getForm(), $submittedData);
 
-        $this->dispatcher->dispatch(FormEvents::SUBMIT, $event);
+        $this->dispatcher->dispatch($event, FormEvents::SUBMIT);
 
         $this->assertTrue($this->collection->contains('test'));
         $this->assertSame(1, $this->collection->count());
@@ -71,10 +72,10 @@ class MergeDoctrineCollectionListenerTest extends TestCase
 
     public function testOnSubmitNullClearCollection()
     {
-        $submittedData = array();
+        $submittedData = [];
         $event = new FormEvent($this->getForm(), $submittedData);
 
-        $this->dispatcher->dispatch(FormEvents::SUBMIT, $event);
+        $this->dispatcher->dispatch($event, FormEvents::SUBMIT);
 
         $this->assertTrue($this->collection->isEmpty());
     }

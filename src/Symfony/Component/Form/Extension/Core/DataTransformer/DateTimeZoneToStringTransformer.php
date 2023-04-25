@@ -17,60 +17,56 @@ use Symfony\Component\Form\Exception\TransformationFailedException;
 /**
  * Transforms between a timezone identifier string and a DateTimeZone object.
  *
- * @author Roland Franssen <franssen.roland@gmai.com>
+ * @author Roland Franssen <franssen.roland@gmail.com>
+ *
+ * @implements DataTransformerInterface<\DateTimeZone|array<\DateTimeZone>, string|array<string>>
  */
 class DateTimeZoneToStringTransformer implements DataTransformerInterface
 {
-    private $multiple;
+    private bool $multiple;
 
     public function __construct(bool $multiple = false)
     {
         $this->multiple = $multiple;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function transform($dateTimeZone)
+    public function transform(mixed $dateTimeZone): mixed
     {
         if (null === $dateTimeZone) {
-            return;
+            return null;
         }
 
         if ($this->multiple) {
             if (!\is_array($dateTimeZone)) {
-                throw new TransformationFailedException('Expected an array.');
+                throw new TransformationFailedException('Expected an array of \DateTimeZone objects.');
             }
 
-            return array_map(array(new self(), 'transform'), $dateTimeZone);
+            return array_map([new self(), 'transform'], $dateTimeZone);
         }
 
         if (!$dateTimeZone instanceof \DateTimeZone) {
-            throw new TransformationFailedException('Expected a \DateTimeZone.');
+            throw new TransformationFailedException('Expected a \DateTimeZone object.');
         }
 
         return $dateTimeZone->getName();
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function reverseTransform($value)
+    public function reverseTransform(mixed $value): mixed
     {
         if (null === $value) {
-            return;
+            return null;
         }
 
         if ($this->multiple) {
             if (!\is_array($value)) {
-                throw new TransformationFailedException('Expected an array.');
+                throw new TransformationFailedException('Expected an array of timezone identifier strings.');
             }
 
-            return array_map(array(new self(), 'reverseTransform'), $value);
+            return array_map([new self(), 'reverseTransform'], $value);
         }
 
         if (!\is_string($value)) {
-            throw new TransformationFailedException('Expected a string.');
+            throw new TransformationFailedException('Expected a timezone identifier string.');
         }
 
         try {

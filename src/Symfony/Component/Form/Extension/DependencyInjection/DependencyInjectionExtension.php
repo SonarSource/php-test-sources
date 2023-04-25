@@ -15,19 +15,19 @@ use Psr\Container\ContainerInterface;
 use Symfony\Component\Form\Exception\InvalidArgumentException;
 use Symfony\Component\Form\FormExtensionInterface;
 use Symfony\Component\Form\FormTypeGuesserChain;
+use Symfony\Component\Form\FormTypeGuesserInterface;
+use Symfony\Component\Form\FormTypeInterface;
 
 class DependencyInjectionExtension implements FormExtensionInterface
 {
-    private $guesser;
-    private $guesserLoaded = false;
-    private $typeContainer;
-    private $typeExtensionServices;
-    private $guesserServices;
+    private ?FormTypeGuesserChain $guesser = null;
+    private bool $guesserLoaded = false;
+    private ContainerInterface $typeContainer;
+    private array $typeExtensionServices;
+    private iterable $guesserServices;
 
     /**
-     * @param ContainerInterface $typeContainer
-     * @param iterable[]         $typeExtensionServices
-     * @param iterable           $guesserServices
+     * @param iterable[] $typeExtensionServices
      */
     public function __construct(ContainerInterface $typeContainer, array $typeExtensionServices, iterable $guesserServices)
     {
@@ -36,7 +36,7 @@ class DependencyInjectionExtension implements FormExtensionInterface
         $this->guesserServices = $guesserServices;
     }
 
-    public function getType($name)
+    public function getType(string $name): FormTypeInterface
     {
         if (!$this->typeContainer->has($name)) {
             throw new InvalidArgumentException(sprintf('The field type "%s" is not registered in the service container.', $name));
@@ -45,32 +45,27 @@ class DependencyInjectionExtension implements FormExtensionInterface
         return $this->typeContainer->get($name);
     }
 
-    public function hasType($name)
+    public function hasType(string $name): bool
     {
         return $this->typeContainer->has($name);
     }
 
-    public function getTypeExtensions($name)
+    public function getTypeExtensions(string $name): array
     {
-        $extensions = array();
+        $extensions = [];
 
         if (isset($this->typeExtensionServices[$name])) {
-            foreach ($this->typeExtensionServices[$name] as $serviceId => $extension) {
+            foreach ($this->typeExtensionServices[$name] as $extension) {
                 $extensions[] = $extension;
 
-                if (method_exists($extension, 'getExtendedTypes')) {
-                    $extendedTypes = array();
-
-                    foreach ($extension::getExtendedTypes() as $extendedType) {
-                        $extendedTypes[] = $extendedType;
-                    }
-                } else {
-                    $extendedTypes = array($extension->getExtendedType());
+                $extendedTypes = [];
+                foreach ($extension::getExtendedTypes() as $extendedType) {
+                    $extendedTypes[] = $extendedType;
                 }
 
-                // validate the result of getExtendedTypes()/getExtendedType() to ensure it is consistent with the service definition
+                // validate the result of getExtendedTypes() to ensure it is consistent with the service definition
                 if (!\in_array($name, $extendedTypes, true)) {
-                    throw new InvalidArgumentException(sprintf('The extended type specified for the service "%s" does not match the actual extended type. Expected "%s", given "%s".', $serviceId, $name, implode(', ', $extendedTypes)));
+                    throw new InvalidArgumentException(sprintf('The extended type "%s" specified for the type extension class "%s" does not match any of the actual extended types (["%s"]).', $name, $extension::class, implode('", "', $extendedTypes)));
                 }
             }
         }
@@ -78,16 +73,16 @@ class DependencyInjectionExtension implements FormExtensionInterface
         return $extensions;
     }
 
-    public function hasTypeExtensions($name)
+    public function hasTypeExtensions(string $name): bool
     {
         return isset($this->typeExtensionServices[$name]);
     }
 
-    public function getTypeGuesser()
+    public function getTypeGuesser(): ?FormTypeGuesserInterface
     {
         if (!$this->guesserLoaded) {
             $this->guesserLoaded = true;
-            $guessers = array();
+            $guessers = [];
 
             foreach ($this->guesserServices as $serviceId => $service) {
                 $guessers[] = $service;

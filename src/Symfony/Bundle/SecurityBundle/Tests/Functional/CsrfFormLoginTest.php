@@ -11,14 +11,24 @@
 
 namespace Symfony\Bundle\SecurityBundle\Tests\Functional;
 
-class CsrfFormLoginTest extends WebTestCase
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\KernelEvents;
+
+class CsrfFormLoginTest extends AbstractWebTestCase
 {
     /**
-     * @dataProvider getConfigs
+     * @dataProvider provideClientOptions
      */
-    public function testFormLoginAndLogoutWithCsrfTokens($config)
+    public function testFormLoginAndLogoutWithCsrfTokens($options)
     {
-        $client = $this->createClient(array('test_case' => 'CsrfFormLogin', 'root_config' => $config));
+        $client = $this->createClient($options);
+
+        $this->callInRequestContext($client, function () {
+            static::getContainer()->get('security.csrf.token_storage')->setToken('foo', 'bar');
+        });
 
         $form = $client->request('GET', '/login')->selectButton('login')->form();
         $form['user_login[username]'] = 'johannes';
@@ -29,26 +39,33 @@ class CsrfFormLoginTest extends WebTestCase
 
         $crawler = $client->followRedirect();
 
-        $text = $crawler->text();
-        $this->assertContains('Hello johannes!', $text);
-        $this->assertContains('You\'re browsing to path "/profile".', $text);
+        $text = $crawler->text(null, true);
+        $this->assertStringContainsString('Hello johannes!', $text);
+        $this->assertStringContainsString('You\'re browsing to path "/profile".', $text);
 
         $logoutLinks = $crawler->selectLink('Log out')->links();
         $this->assertCount(2, $logoutLinks);
-        $this->assertContains('_csrf_token=', $logoutLinks[0]->getUri());
-        $this->assertSame($logoutLinks[0]->getUri(), $logoutLinks[1]->getUri());
+        $this->assertStringContainsString('_csrf_token=', $logoutLinks[0]->getUri());
 
         $client->click($logoutLinks[0]);
 
         $this->assertRedirect($client->getResponse(), '/');
+
+        $this->callInRequestContext($client, function () {
+            $this->assertFalse(static::getContainer()->get('security.csrf.token_storage')->hasToken('foo'));
+        });
     }
 
     /**
-     * @dataProvider getConfigs
+     * @dataProvider provideClientOptions
      */
-    public function testFormLoginWithInvalidCsrfToken($config)
+    public function testFormLoginWithInvalidCsrfToken($options)
     {
-        $client = $this->createClient(array('test_case' => 'CsrfFormLogin', 'root_config' => $config));
+        $client = $this->createClient($options);
+
+        $this->callInRequestContext($client, function () {
+            static::getContainer()->get('security.csrf.token_storage')->setToken('foo', 'bar');
+        });
 
         $form = $client->request('GET', '/login')->selectButton('login')->form();
         $form['user_login[_token]'] = '';
@@ -56,16 +73,20 @@ class CsrfFormLoginTest extends WebTestCase
 
         $this->assertRedirect($client->getResponse(), '/login');
 
-        $text = $client->followRedirect()->text();
-        $this->assertContains('Invalid CSRF token.', $text);
+        $text = $client->followRedirect()->text(null, true);
+        $this->assertStringContainsString('Invalid CSRF token.', $text);
+
+        $this->callInRequestContext($client, function () {
+            $this->assertTrue(static::getContainer()->get('security.csrf.token_storage')->hasToken('foo'));
+        });
     }
 
     /**
-     * @dataProvider getConfigs
+     * @dataProvider provideClientOptions
      */
-    public function testFormLoginWithCustomTargetPath($config)
+    public function testFormLoginWithCustomTargetPath($options)
     {
-        $client = $this->createClient(array('test_case' => 'CsrfFormLogin', 'root_config' => $config));
+        $client = $this->createClient($options);
 
         $form = $client->request('GET', '/login')->selectButton('login')->form();
         $form['user_login[username]'] = 'johannes';
@@ -75,17 +96,17 @@ class CsrfFormLoginTest extends WebTestCase
 
         $this->assertRedirect($client->getResponse(), '/foo');
 
-        $text = $client->followRedirect()->text();
-        $this->assertContains('Hello johannes!', $text);
-        $this->assertContains('You\'re browsing to path "/foo".', $text);
+        $text = $client->followRedirect()->text(null, true);
+        $this->assertStringContainsString('Hello johannes!', $text);
+        $this->assertStringContainsString('You\'re browsing to path "/foo".', $text);
     }
 
     /**
-     * @dataProvider getConfigs
+     * @dataProvider provideClientOptions
      */
-    public function testFormLoginRedirectsToProtectedResourceAfterLogin($config)
+    public function testFormLoginRedirectsToProtectedResourceAfterLogin($options)
     {
-        $client = $this->createClient(array('test_case' => 'CsrfFormLogin', 'root_config' => $config));
+        $client = $this->createClient($options);
 
         $client->request('GET', '/protected-resource');
         $this->assertRedirect($client->getResponse(), '/login');
@@ -96,16 +117,32 @@ class CsrfFormLoginTest extends WebTestCase
         $client->submit($form);
         $this->assertRedirect($client->getResponse(), '/protected-resource');
 
-        $text = $client->followRedirect()->text();
-        $this->assertContains('Hello johannes!', $text);
-        $this->assertContains('You\'re browsing to path "/protected-resource".', $text);
+        $text = $client->followRedirect()->text(null, true);
+        $this->assertStringContainsString('Hello johannes!', $text);
+        $this->assertStringContainsString('You\'re browsing to path "/protected-resource".', $text);
     }
 
-    public function getConfigs()
+    public static function provideClientOptions()
     {
-        return array(
-            array('config.yml'),
-            array('routes_as_path.yml'),
-        );
+        yield [['test_case' => 'CsrfFormLogin', 'root_config' => 'config.yml']];
+        yield [['test_case' => 'CsrfFormLogin', 'root_config' => 'routes_as_path.yml']];
+    }
+
+    private function callInRequestContext(KernelBrowser $client, callable $callable): void
+    {
+        /** @var EventDispatcherInterface $eventDispatcher */
+        $eventDispatcher = static::getContainer()->get(EventDispatcherInterface::class);
+        $wrappedCallable = function (RequestEvent $event) use (&$callable) {
+            $callable();
+            $event->setResponse(new Response(''));
+            $event->stopPropagation();
+        };
+
+        $eventDispatcher->addListener(KernelEvents::REQUEST, $wrappedCallable);
+        try {
+            $client->request('GET', '/'.uniqid('', true));
+        } finally {
+            $eventDispatcher->removeListener(KernelEvents::REQUEST, $wrappedCallable);
+        }
     }
 }

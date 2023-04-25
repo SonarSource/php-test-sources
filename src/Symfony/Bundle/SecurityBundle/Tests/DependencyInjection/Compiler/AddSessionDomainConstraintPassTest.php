@@ -12,17 +12,21 @@
 namespace Symfony\Bundle\SecurityBundle\Tests\DependencyInjection\Compiler;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface;
 use Symfony\Bundle\FrameworkBundle\DependencyInjection\FrameworkExtension;
 use Symfony\Bundle\SecurityBundle\DependencyInjection\Compiler\AddSessionDomainConstraintPass;
 use Symfony\Bundle\SecurityBundle\DependencyInjection\SecurityExtension;
+use Symfony\Component\DependencyInjection\Alias;
+use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\HttpFoundation\Request;
 
 class AddSessionDomainConstraintPassTest extends TestCase
 {
     public function testSessionCookie()
     {
-        $container = $this->createContainer(array('cookie_domain' => '.symfony.com.', 'cookie_secure' => true));
+        $container = $this->createContainer(['cookie_domain' => '.symfony.com.', 'cookie_secure' => true]);
 
         $utils = $container->get('security.http_utils');
         $request = Request::create('/', 'get');
@@ -37,7 +41,7 @@ class AddSessionDomainConstraintPassTest extends TestCase
 
     public function testSessionNoDomain()
     {
-        $container = $this->createContainer(array('cookie_secure' => true));
+        $container = $this->createContainer(['cookie_secure' => true]);
 
         $utils = $container->get('security.http_utils');
         $request = Request::create('/', 'get');
@@ -52,7 +56,7 @@ class AddSessionDomainConstraintPassTest extends TestCase
 
     public function testSessionNoSecure()
     {
-        $container = $this->createContainer(array('cookie_domain' => '.symfony.com.'));
+        $container = $this->createContainer(['cookie_domain' => '.symfony.com.']);
 
         $utils = $container->get('security.http_utils');
         $request = Request::create('/', 'get');
@@ -67,7 +71,7 @@ class AddSessionDomainConstraintPassTest extends TestCase
 
     public function testSessionNoSecureAndNoDomain()
     {
-        $container = $this->createContainer(array());
+        $container = $this->createContainer([]);
 
         $utils = $container->get('security.http_utils');
         $request = Request::create('/', 'get');
@@ -98,7 +102,7 @@ class AddSessionDomainConstraintPassTest extends TestCase
 
     public function testSessionAutoSecure()
     {
-        $container = $this->createContainer(array('cookie_domain' => '.symfony.com.', 'cookie_secure' => 'auto'));
+        $container = $this->createContainer(['cookie_domain' => '.symfony.com.', 'cookie_secure' => 'auto']);
 
         $utils = $container->get('security.http_utils');
         $request = Request::create('/', 'get');
@@ -119,13 +123,13 @@ class AddSessionDomainConstraintPassTest extends TestCase
     private function createContainer($sessionStorageOptions)
     {
         $container = new ContainerBuilder();
-        $container->setParameter('kernel.bundles_metadata', array());
+        $container->setParameter('kernel.bundles_metadata', []);
         $container->setParameter('kernel.cache_dir', __DIR__);
+        $container->setParameter('kernel.build_dir', __DIR__);
         $container->setParameter('kernel.charset', 'UTF-8');
         $container->setParameter('kernel.container_class', 'cc');
         $container->setParameter('kernel.debug', true);
         $container->setParameter('kernel.project_dir', __DIR__);
-        $container->setParameter('kernel.root_dir', __DIR__);
         $container->setParameter('kernel.secret', __DIR__);
         if (null !== $sessionStorageOptions) {
             $container->setParameter('session.storage.options', $sessionStorageOptions);
@@ -133,21 +137,24 @@ class AddSessionDomainConstraintPassTest extends TestCase
         $container->setParameter('request_listener.http_port', 80);
         $container->setParameter('request_listener.https_port', 443);
 
-        $config = array(
-            'security' => array(
-                'providers' => array('some_provider' => array('id' => 'foo')),
-                'firewalls' => array('some_firewall' => array('security' => false)),
-            ),
-        );
+        $config = [
+            'security' => [
+                'providers' => ['some_provider' => ['id' => 'foo']],
+                'firewalls' => ['some_firewall' => ['security' => false]],
+            ],
+        ];
 
         $ext = new FrameworkExtension();
-        $ext->load(array('framework' => array('csrf_protection' => false, 'router' => array('resource' => 'dummy'))), $container);
+        $ext->load(['framework' => ['http_method_override' => false, 'csrf_protection' => false, 'router' => ['resource' => 'dummy', 'utf8' => true]]], $container);
 
         $ext = new SecurityExtension();
         $ext->load($config, $container);
 
         $pass = new AddSessionDomainConstraintPass();
         $pass->process($container);
+
+        $container->setDefinition('.service_subscriber.fallback_container', new Definition(Container::class));
+        $container->setAlias(ContainerInterface::class, new Alias('.service_subscriber.fallback_container', false));
 
         return $container;
     }

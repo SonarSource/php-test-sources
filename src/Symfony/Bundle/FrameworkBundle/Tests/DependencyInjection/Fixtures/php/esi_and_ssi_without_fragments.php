@@ -1,13 +1,14 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'fragments' => array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'fragments' => [
         'enabled' => false,
-    ),
-    'esi' => array(
+    ],
+    'esi' => [
         'enabled' => true,
-    ),
-    'ssi' => array(
+    ],
+    'ssi' => [
         'enabled' => true,
-    ),
-));
+    ],
+]);

@@ -1,5 +1,6 @@
 <?php
 
-$container->loadFromExtension('framework', array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
     'workflows' => null,
-));
+]);

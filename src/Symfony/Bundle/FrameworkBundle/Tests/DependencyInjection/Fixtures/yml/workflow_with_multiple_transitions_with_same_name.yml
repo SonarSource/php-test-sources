@@ -1,12 +1,11 @@
 framework:
+    http_method_override: false
     workflows:
         article:
             type: workflow
-            marking_store:
-                type: multiple_state
             supports:
-                - Symfony\Bundle\FrameworkBundle\Tests\DependencyInjection\FrameworkExtensionTest
-            initial_place: draft
+                - Symfony\Bundle\FrameworkBundle\Tests\DependencyInjection\FrameworkExtensionTestCase
+            initial_marking: [draft]
             places:
                 - draft
                 - wait_for_journalist

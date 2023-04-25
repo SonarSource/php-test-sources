@@ -28,9 +28,9 @@ class ExcludeDirectoryFilterIteratorTest extends RealIteratorTestCase
         $this->assertIterator($expected, $iterator);
     }
 
-    public function getAcceptData()
+    public static function getAcceptData()
     {
-        $foo = array(
+        $foo = [
             '.bar',
             '.foo',
             '.foo/.bar',
@@ -43,6 +43,8 @@ class ExcludeDirectoryFilterIteratorTest extends RealIteratorTestCase
             'foo bar',
             'qux',
             'qux/baz_100_1.py',
+            'zebulon.php',
+            'Zephire.php',
             'qux/baz_1_2.py',
             'qux_0_1.php',
             'qux_1000_1.php',
@@ -50,9 +52,9 @@ class ExcludeDirectoryFilterIteratorTest extends RealIteratorTestCase
             'qux_10_2.php',
             'qux_12_0.php',
             'qux_2_0.php',
-        );
+        ];
 
-        $fo = array(
+        $fo = [
             '.bar',
             '.foo',
             '.foo/.bar',
@@ -67,6 +69,8 @@ class ExcludeDirectoryFilterIteratorTest extends RealIteratorTestCase
             'foo bar',
             'qux',
             'qux/baz_100_1.py',
+            'zebulon.php',
+            'Zephire.php',
             'qux/baz_1_2.py',
             'qux_0_1.php',
             'qux_1000_1.php',
@@ -74,9 +78,9 @@ class ExcludeDirectoryFilterIteratorTest extends RealIteratorTestCase
             'qux_10_2.php',
             'qux_12_0.php',
             'qux_2_0.php',
-        );
+        ];
 
-        $toto = array(
+        $toto = [
             '.bar',
             '.foo',
             '.foo/.bar',
@@ -89,6 +93,8 @@ class ExcludeDirectoryFilterIteratorTest extends RealIteratorTestCase
             'foo bar',
             'qux',
             'qux/baz_100_1.py',
+            'zebulon.php',
+            'Zephire.php',
             'qux/baz_1_2.py',
             'qux_0_1.php',
             'qux_1000_1.php',
@@ -96,12 +102,12 @@ class ExcludeDirectoryFilterIteratorTest extends RealIteratorTestCase
             'qux_10_2.php',
             'qux_12_0.php',
             'qux_2_0.php',
-        );
+        ];
 
-        return array(
-            array(array('foo'), $this->toAbsolute($foo)),
-            array(array('fo'), $this->toAbsolute($fo)),
-            array(array('toto/'), $this->toAbsolute($toto)),
-        );
+        return [
+            [['foo'], self::toAbsolute($foo)],
+            [['fo'], self::toAbsolute($fo)],
+            [['toto/'], self::toAbsolute($toto)],
+        ];
     }
 }

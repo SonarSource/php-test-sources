@@ -19,17 +19,14 @@ use Twig\Node\Expression\NameExpression;
 use Twig\Node\Node;
 use Twig\Node\TextNode;
 
-// BC/FC with namespaced Twig
-class_exists('Twig\Node\Expression\ArrayExpression');
-
 /**
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class TransNode extends Node
+final class TransNode extends Node
 {
     public function __construct(Node $body, Node $domain = null, AbstractExpression $count = null, AbstractExpression $vars = null, AbstractExpression $locale = null, int $lineno = 0, string $tag = null)
     {
-        $nodes = array('body' => $body);
+        $nodes = ['body' => $body];
         if (null !== $domain) {
             $nodes['domain'] = $domain;
         }
@@ -43,21 +40,19 @@ class TransNode extends Node
             $nodes['locale'] = $locale;
         }
 
-        parent::__construct($nodes, array(), $lineno, $tag);
+        parent::__construct($nodes, [], $lineno, $tag);
     }
 
-    public function compile(Compiler $compiler)
+    public function compile(Compiler $compiler): void
     {
         $compiler->addDebugInfo($this);
 
-        $defaults = new ArrayExpression(array(), -1);
+        $defaults = new ArrayExpression([], -1);
         if ($this->hasNode('vars') && ($vars = $this->getNode('vars')) instanceof ArrayExpression) {
             $defaults = $this->getNode('vars');
             $vars = null;
         }
-        list($msg, $defaults) = $this->compileString($this->getNode('body'), $defaults, (bool) $vars);
-
-        $method = !$this->hasNode('count') ? 'trans' : 'transChoice';
+        [$msg, $defaults] = $this->compileString($this->getNode('body'), $defaults, (bool) $vars);
 
         $compiler
             ->write('echo $this->env->getExtension(\'Symfony\Bridge\Twig\Extension\TranslationExtension\')->trans(')
@@ -105,14 +100,14 @@ class TransNode extends Node
         $compiler->raw(");\n");
     }
 
-    protected function compileString(Node $body, ArrayExpression $vars, $ignoreStrictCheck = false)
+    private function compileString(Node $body, ArrayExpression $vars, bool $ignoreStrictCheck = false): array
     {
         if ($body instanceof ConstantExpression) {
             $msg = $body->getAttribute('value');
         } elseif ($body instanceof TextNode) {
             $msg = $body->getAttribute('data');
         } else {
-            return array($body, $vars);
+            return [$body, $vars];
         }
 
         preg_match_all('/(?<!%)%([^%]+)%/', $msg, $matches);
@@ -130,6 +125,6 @@ class TransNode extends Node
             }
         }
 
-        return array(new ConstantExpression(str_replace('%%', '%', trim($msg)), $body->getTemplateLine()), $vars);
+        return [new ConstantExpression(str_replace('%%', '%', trim($msg)), $body->getTemplateLine()), $vars];
     }
 }

@@ -11,29 +11,27 @@
 
 namespace Symfony\Bridge\Monolog\Tests\Handler\FingersCrossed;
 
+use Monolog\Handler\FingersCrossed\ErrorLevelActivationStrategy;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Monolog\Handler\FingersCrossed\HttpCodeActivationStrategy;
+use Symfony\Bridge\Monolog\Tests\RecordFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class HttpCodeActivationStrategyTest extends TestCase
 {
-    /**
-     * @expectedException \LogicException
-     */
     public function testExclusionsWithoutCode()
     {
-        new HttpCodeActivationStrategy(new RequestStack(), array(array('urls' => array())), Logger::WARNING);
+        $this->expectException(\LogicException::class);
+        new HttpCodeActivationStrategy(new RequestStack(), [['urls' => []]], new ErrorLevelActivationStrategy(Logger::WARNING));
     }
 
-    /**
-     * @expectedException \LogicException
-     */
     public function testExclusionsWithoutUrls()
     {
-        new HttpCodeActivationStrategy(new RequestStack(), array(array('code' => 404)), Logger::WARNING);
+        $this->expectException(\LogicException::class);
+        new HttpCodeActivationStrategy(new RequestStack(), [['code' => 404]], new ErrorLevelActivationStrategy(Logger::WARNING));
     }
 
     /**
@@ -46,36 +44,36 @@ class HttpCodeActivationStrategyTest extends TestCase
 
         $strategy = new HttpCodeActivationStrategy(
             $requestStack,
-            array(
-                array('code' => 403, 'urls' => array()),
-                array('code' => 404, 'urls' => array()),
-                array('code' => 405, 'urls' => array()),
-                array('code' => 400, 'urls' => array('^/400/a', '^/400/b')),
-            ),
-            Logger::WARNING
+            [
+                ['code' => 403, 'urls' => []],
+                ['code' => 404, 'urls' => []],
+                ['code' => 405, 'urls' => []],
+                ['code' => 400, 'urls' => ['^/400/a', '^/400/b']],
+            ],
+            new ErrorLevelActivationStrategy(Logger::WARNING)
         );
 
-        $this->assertEquals($expected, $strategy->isHandlerActivated($record));
+        self::assertEquals($expected, $strategy->isHandlerActivated($record));
     }
 
-    public function isActivatedProvider()
+    public static function isActivatedProvider(): array
     {
-        return array(
-            array('/test',  array('level' => Logger::ERROR), true),
-            array('/400',   array('level' => Logger::ERROR, 'context' => $this->getContextException(400)), true),
-            array('/400/a', array('level' => Logger::ERROR, 'context' => $this->getContextException(400)), false),
-            array('/400/b', array('level' => Logger::ERROR, 'context' => $this->getContextException(400)), false),
-            array('/400/c', array('level' => Logger::ERROR, 'context' => $this->getContextException(400)), true),
-            array('/401',   array('level' => Logger::ERROR, 'context' => $this->getContextException(401)), true),
-            array('/403',   array('level' => Logger::ERROR, 'context' => $this->getContextException(403)), false),
-            array('/404',   array('level' => Logger::ERROR, 'context' => $this->getContextException(404)), false),
-            array('/405',   array('level' => Logger::ERROR, 'context' => $this->getContextException(405)), false),
-            array('/500',   array('level' => Logger::ERROR, 'context' => $this->getContextException(500)), true),
-        );
+        return [
+            ['/test',  RecordFactory::create(Logger::ERROR), true],
+            ['/400',   RecordFactory::create(Logger::ERROR, context: self::getContextException(400)), true],
+            ['/400/a', RecordFactory::create(Logger::ERROR, context: self::getContextException(400)), false],
+            ['/400/b', RecordFactory::create(Logger::ERROR, context: self::getContextException(400)), false],
+            ['/400/c', RecordFactory::create(Logger::ERROR, context: self::getContextException(400)), true],
+            ['/401',   RecordFactory::create(Logger::ERROR, context: self::getContextException(401)), true],
+            ['/403',   RecordFactory::create(Logger::ERROR, context: self::getContextException(403)), false],
+            ['/404',   RecordFactory::create(Logger::ERROR, context: self::getContextException(404)), false],
+            ['/405',   RecordFactory::create(Logger::ERROR, context: self::getContextException(405)), false],
+            ['/500',   RecordFactory::create(Logger::ERROR, context: self::getContextException(500)), true],
+        ];
     }
 
-    protected function getContextException($code)
+    private static function getContextException(int $code): array
     {
-        return array('exception' => new HttpException($code));
+        return ['exception' => new HttpException($code)];
     }
 }

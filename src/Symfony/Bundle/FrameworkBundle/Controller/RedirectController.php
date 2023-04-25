@@ -11,6 +11,7 @@
 
 namespace Symfony\Bundle\FrameworkBundle\Controller;
 
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,9 +27,9 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  */
 class RedirectController
 {
-    private $router;
-    private $httpPort;
-    private $httpsPort;
+    private ?UrlGeneratorInterface $router;
+    private ?int $httpPort;
+    private ?int $httpsPort;
 
     public function __construct(UrlGeneratorInterface $router = null, int $httpPort = null, int $httpsPort = null)
     {
@@ -46,24 +47,33 @@ class RedirectController
      * In case the route name is empty, the status code will be 404 when permanent is false
      * and 410 otherwise.
      *
-     * @param Request    $request           The request instance
      * @param string     $route             The route name to redirect to
      * @param bool       $permanent         Whether the redirection is permanent
      * @param bool|array $ignoreAttributes  Whether to ignore attributes or an array of attributes to ignore
-     * @param bool       $keepRequestMethod Wheter redirect action should keep HTTP request method
+     * @param bool       $keepRequestMethod Whether redirect action should keep HTTP request method
      *
      * @throws HttpException In case the route name is empty
      */
-    public function redirectAction(Request $request, string $route, bool $permanent = false, $ignoreAttributes = false, bool $keepRequestMethod = false, bool $keepQueryParams = false): Response
+    public function redirectAction(Request $request, string $route, bool $permanent = false, bool|array $ignoreAttributes = false, bool $keepRequestMethod = false, bool $keepQueryParams = false): Response
     {
         if ('' == $route) {
             throw new HttpException($permanent ? 410 : 404);
         }
 
-        $attributes = array();
+        $attributes = [];
         if (false === $ignoreAttributes || \is_array($ignoreAttributes)) {
             $attributes = $request->attributes->get('_route_params');
-            $attributes = $keepQueryParams ? array_merge($request->query->all(), $attributes) : $attributes;
+
+            if ($keepQueryParams) {
+                if ($query = $request->server->get('QUERY_STRING')) {
+                    $query = HeaderUtils::parseQuery($query);
+                } else {
+                    $query = $request->query->all();
+                }
+
+                $attributes = array_merge($query, $attributes);
+            }
+
             unset($attributes['route'], $attributes['permanent'], $attributes['ignoreAttributes'], $attributes['keepRequestMethod'], $attributes['keepQueryParams']);
             if ($ignoreAttributes) {
                 $attributes = array_diff_key($attributes, array_flip($ignoreAttributes));
@@ -88,13 +98,12 @@ class RedirectController
      * In case the path is empty, the status code will be 404 when permanent is false
      * and 410 otherwise.
      *
-     * @param Request     $request           The request instance
      * @param string      $path              The absolute path or URL to redirect to
      * @param bool        $permanent         Whether the redirect is permanent or not
      * @param string|null $scheme            The URL scheme (null to keep the current one)
      * @param int|null    $httpPort          The HTTP port (null to keep the current one for the same scheme or the default configured port)
      * @param int|null    $httpsPort         The HTTPS port (null to keep the current one for the same scheme or the default configured port)
-     * @param bool        $keepRequestMethod Wheter redirect action should keep HTTP request method
+     * @param bool        $keepRequestMethod Whether redirect action should keep HTTP request method
      *
      * @throws HttpException In case the path is empty
      */
@@ -111,17 +120,14 @@ class RedirectController
         }
 
         // redirect if the path is a full URL
-        if (parse_url($path, PHP_URL_SCHEME)) {
+        if (parse_url($path, \PHP_URL_SCHEME)) {
             return new RedirectResponse($path, $statusCode);
         }
 
-        if (null === $scheme) {
-            $scheme = $request->getScheme();
-        }
+        $scheme ??= $request->getScheme();
 
-        $qs = $request->getQueryString();
-        if ($qs) {
-            if (false === strpos($path, '?')) {
+        if ($qs = $request->server->get('QUERY_STRING') ?: $request->getQueryString()) {
+            if (!str_contains($path, '?')) {
                 $qs = '?'.$qs;
             } else {
                 $qs = '&'.$qs;
@@ -158,5 +164,24 @@ class RedirectController
         $url = $scheme.'://'.$request->getHost().$port.$request->getBaseUrl().$path.$qs;
 
         return new RedirectResponse($url, $statusCode);
+    }
+
+    public function __invoke(Request $request): Response
+    {
+        $p = $request->attributes->get('_route_params', []);
+
+        if (\array_key_exists('route', $p)) {
+            if (\array_key_exists('path', $p)) {
+                throw new \RuntimeException(sprintf('Ambiguous redirection settings, use the "path" or "route" parameter, not both: "%s" and "%s" found respectively in "%s" routing configuration.', $p['path'], $p['route'], $request->attributes->get('_route')));
+            }
+
+            return $this->redirectAction($request, $p['route'], $p['permanent'] ?? false, $p['ignoreAttributes'] ?? false, $p['keepRequestMethod'] ?? false, $p['keepQueryParams'] ?? false);
+        }
+
+        if (\array_key_exists('path', $p)) {
+            return $this->urlRedirectAction($request, $p['path'], $p['permanent'] ?? false, $p['scheme'] ?? null, $p['httpPort'] ?? null, $p['httpsPort'] ?? null, $p['keepRequestMethod'] ?? false);
+        }
+
+        throw new \RuntimeException(sprintf('The parameter "path" or "route" is required to configure the redirect action in "%s" routing configuration.', $request->attributes->get('_route')));
     }
 }

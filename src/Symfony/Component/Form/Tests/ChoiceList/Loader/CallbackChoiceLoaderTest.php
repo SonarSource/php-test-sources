@@ -12,6 +12,7 @@
 namespace Symfony\Component\Form\Tests\ChoiceList\Loader;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Form\ChoiceList\ChoiceListInterface;
 use Symfony\Component\Form\ChoiceList\LazyChoiceList;
 use Symfony\Component\Form\ChoiceList\Loader\CallbackChoiceLoader;
 
@@ -45,32 +46,35 @@ class CallbackChoiceLoaderTest extends TestCase
      */
     private static $lazyChoiceList;
 
-    public static function setUpBeforeClass()
+    public static function setUpBeforeClass(): void
     {
-        self::$loader = new CallbackChoiceLoader(function () {
-            return self::$choices;
-        });
-        self::$value = function ($choice) {
-            return isset($choice->value) ? $choice->value : null;
-        };
-        self::$choices = array(
-            (object) array('value' => 'choice_one'),
-            (object) array('value' => 'choice_two'),
-        );
-        self::$choiceValues = array('choice_one', 'choice_two');
+        self::$loader = new CallbackChoiceLoader(fn () => self::$choices);
+        self::$value = fn ($choice) => $choice->value ?? null;
+        self::$choices = [
+            (object) ['value' => 'choice_one'],
+            (object) ['value' => 'choice_two'],
+        ];
+        self::$choiceValues = ['choice_one', 'choice_two'];
         self::$lazyChoiceList = new LazyChoiceList(self::$loader, self::$value);
     }
 
     public function testLoadChoiceList()
     {
-        $this->assertInstanceOf('\Symfony\Component\Form\ChoiceList\ChoiceListInterface', self::$loader->loadChoiceList(self::$value));
+        $this->assertInstanceOf(ChoiceListInterface::class, self::$loader->loadChoiceList(self::$value));
     }
 
-    public function testLoadChoiceListOnlyOnce()
+    public function testLoadChoicesOnlyOnce()
     {
-        $loadedChoiceList = self::$loader->loadChoiceList(self::$value);
+        $calls = 0;
+        $loader = new CallbackChoiceLoader(function () use (&$calls) {
+            ++$calls;
 
-        $this->assertSame($loadedChoiceList, self::$loader->loadChoiceList(self::$value));
+            return [1];
+        });
+        $loadedChoiceList = $loader->loadChoiceList();
+
+        $this->assertNotSame($loadedChoiceList, $loader->loadChoiceList());
+        $this->assertSame(1, $calls);
     }
 
     public function testLoadChoicesForValuesLoadsChoiceListOnFirstCall()
@@ -82,6 +86,18 @@ class CallbackChoiceLoaderTest extends TestCase
         );
     }
 
+    public function testLoadValuesForChoicesCastsCallbackItemsToString()
+    {
+        $choices = [
+           (object) ['id' => 2],
+           (object) ['id' => 3],
+        ];
+
+        $value = fn ($item) => $item->id;
+
+        $this->assertSame(['2', '3'], self::$loader->loadValuesForChoices($choices, $value));
+    }
+
     public function testLoadValuesForChoicesLoadsChoiceListOnFirstCall()
     {
         $this->assertSame(
@@ -91,12 +107,12 @@ class CallbackChoiceLoaderTest extends TestCase
         );
     }
 
-    public static function tearDownAfterClass()
+    public static function tearDownAfterClass(): void
     {
         self::$loader = null;
         self::$value = null;
-        self::$choices = array();
-        self::$choiceValues = array();
+        self::$choices = [];
+        self::$choiceValues = [];
         self::$lazyChoiceList = null;
     }
 }

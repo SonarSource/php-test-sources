@@ -15,21 +15,13 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 class StubTranslator implements TranslatorInterface
 {
-    public function trans($id, array $parameters = array(), $domain = null, $locale = null)
+    public function trans($id, array $parameters = [], $domain = null, $locale = null): string
     {
-        return '[trans]'.$id.'[/trans]';
+        return '[trans]'.strtr($id, $parameters).'[/trans]';
     }
 
-    public function transChoice($id, $number, array $parameters = array(), $domain = null, $locale = null)
+    public function getLocale(): string
     {
-        return '[trans]'.$id.'[/trans]';
-    }
-
-    public function setLocale($locale)
-    {
-    }
-
-    public function getLocale()
-    {
+        return 'en';
     }
 }

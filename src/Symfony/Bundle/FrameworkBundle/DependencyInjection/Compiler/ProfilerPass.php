@@ -11,6 +11,7 @@
 
 namespace Symfony\Bundle\FrameworkBundle\DependencyInjection\Compiler;
 
+use Symfony\Bundle\FrameworkBundle\DataCollector\TemplateAwareDataCollectorInterface;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
@@ -23,6 +24,9 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 class ProfilerPass implements CompilerPassInterface
 {
+    /**
+     * @return void
+     */
     public function process(ContainerBuilder $container)
     {
         if (false === $container->hasDefinition('profiler')) {
@@ -32,24 +36,27 @@ class ProfilerPass implements CompilerPassInterface
         $definition = $container->getDefinition('profiler');
 
         $collectors = new \SplPriorityQueue();
-        $order = PHP_INT_MAX;
+        $order = \PHP_INT_MAX;
         foreach ($container->findTaggedServiceIds('data_collector', true) as $id => $attributes) {
-            $priority = isset($attributes[0]['priority']) ? $attributes[0]['priority'] : 0;
+            $priority = $attributes[0]['priority'] ?? 0;
             $template = null;
 
-            if (isset($attributes[0]['template'])) {
-                if (!isset($attributes[0]['id'])) {
-                    throw new InvalidArgumentException(sprintf('Data collector service "%s" must have an id attribute in order to specify a template', $id));
+            $collectorClass = $container->findDefinition($id)->getClass();
+            $isTemplateAware = is_subclass_of($collectorClass, TemplateAwareDataCollectorInterface::class);
+            if (isset($attributes[0]['template']) || $isTemplateAware) {
+                $idForTemplate = $attributes[0]['id'] ?? $collectorClass;
+                if (!$idForTemplate) {
+                    throw new InvalidArgumentException(sprintf('Data collector service "%s" must have an id attribute in order to specify a template.', $id));
                 }
-                $template = array($attributes[0]['id'], $attributes[0]['template']);
+                $template = [$idForTemplate, $attributes[0]['template'] ?? $collectorClass::getTemplate()];
             }
 
-            $collectors->insert(array($id, $template), array($priority, --$order));
+            $collectors->insert([$id, $template], [$priority, --$order]);
         }
 
-        $templates = array();
+        $templates = [];
         foreach ($collectors as $collector) {
-            $definition->addMethodCall('add', array(new Reference($collector[0])));
+            $definition->addMethodCall('add', [new Reference($collector[0])]);
             $templates[$collector[0]] = $collector[1];
         }
 

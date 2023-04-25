@@ -12,6 +12,7 @@
 namespace Symfony\Component\HttpKernel\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\UriSigner;
 
 class UriSignerTest extends TestCase
@@ -20,8 +21,9 @@ class UriSignerTest extends TestCase
     {
         $signer = new UriSigner('foobar');
 
-        $this->assertContains('?_hash=', $signer->sign('http://example.com/foo'));
-        $this->assertContains('&_hash=', $signer->sign('http://example.com/foo?foo=bar'));
+        $this->assertStringContainsString('?_hash=', $signer->sign('http://example.com/foo'));
+        $this->assertStringContainsString('?_hash=', $signer->sign('http://example.com/foo?foo=bar'));
+        $this->assertStringContainsString('&foo=', $signer->sign('http://example.com/foo?foo=bar'));
     }
 
     public function testCheck()
@@ -45,10 +47,19 @@ class UriSignerTest extends TestCase
         $signer = new UriSigner('foobar');
 
         $this->assertSame(
-            'http://example.com/foo?baz=bay&foo=bar&_hash=rIOcC%2FF3DoEGo%2FvnESjSp7uU9zA9S%2F%2BOLhxgMexoPUM%3D',
+            'http://example.com/foo?_hash=rIOcC%2FF3DoEGo%2FvnESjSp7uU9zA9S%2F%2BOLhxgMexoPUM%3D&baz=bay&foo=bar',
             $signer->sign('http://example.com/foo?foo=bar&baz=bay')
         );
         $this->assertTrue($signer->check($signer->sign('http://example.com/foo?foo=bar&baz=bay')));
+    }
+
+    public function testCheckWithRequest()
+    {
+        $signer = new UriSigner('foobar');
+
+        $this->assertTrue($signer->checkRequest(Request::create($signer->sign('http://example.com/foo'))));
+        $this->assertTrue($signer->checkRequest(Request::create($signer->sign('http://example.com/foo?foo=bar'))));
+        $this->assertTrue($signer->checkRequest(Request::create($signer->sign('http://example.com/foo?foo=bar&0=integer'))));
     }
 
     public function testCheckWithDifferentParameter()
@@ -60,5 +71,16 @@ class UriSignerTest extends TestCase
             $signer->sign('http://example.com/foo?foo=bar&baz=bay')
         );
         $this->assertTrue($signer->check($signer->sign('http://example.com/foo?foo=bar&baz=bay')));
+    }
+
+    public function testSignerWorksWithFragments()
+    {
+        $signer = new UriSigner('foobar');
+
+        $this->assertSame(
+            'http://example.com/foo?_hash=EhpAUyEobiM3QTrKxoLOtQq5IsWyWedoXDPqIjzNj5o%3D&bar=foo&foo=bar#foobar',
+            $signer->sign('http://example.com/foo?bar=foo&foo=bar#foobar')
+        );
+        $this->assertTrue($signer->check($signer->sign('http://example.com/foo?bar=foo&foo=bar#foobar')));
     }
 }

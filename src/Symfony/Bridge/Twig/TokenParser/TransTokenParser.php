@@ -25,22 +25,15 @@ use Twig\TokenParser\AbstractTokenParser;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class TransTokenParser extends AbstractTokenParser
+final class TransTokenParser extends AbstractTokenParser
 {
-    /**
-     * Parses a token and returns a node.
-     *
-     * @return Node
-     *
-     * @throws SyntaxError
-     */
-    public function parse(Token $token)
+    public function parse(Token $token): Node
     {
         $lineno = $token->getLine();
         $stream = $this->parser->getStream();
 
         $count = null;
-        $vars = new ArrayExpression(array(), $lineno);
+        $vars = new ArrayExpression([], $lineno);
         $domain = null;
         $locale = null;
         if (!$stream->test(Token::BLOCK_END_TYPE)) {
@@ -67,16 +60,16 @@ class TransTokenParser extends AbstractTokenParser
                 $stream->next();
                 $locale = $this->parser->getExpressionParser()->parseExpression();
             } elseif (!$stream->test(Token::BLOCK_END_TYPE)) {
-                throw new SyntaxError('Unexpected token. Twig was looking for the "with", "from", or "into" keyword.', $stream->getCurrent()->getLine(), $stream->getSourceContext()->getName());
+                throw new SyntaxError('Unexpected token. Twig was looking for the "with", "from", or "into" keyword.', $stream->getCurrent()->getLine(), $stream->getSourceContext());
             }
         }
 
         // {% trans %}message{% endtrans %}
         $stream->expect(Token::BLOCK_END_TYPE);
-        $body = $this->parser->subparse(array($this, 'decideTransFork'), true);
+        $body = $this->parser->subparse($this->decideTransFork(...), true);
 
         if (!$body instanceof TextNode && !$body instanceof AbstractExpression) {
-            throw new SyntaxError('A message inside a trans tag must be a simple text.', $body->getTemplateLine(), $stream->getSourceContext()->getName());
+            throw new SyntaxError('A message inside a trans tag must be a simple text.', $body->getTemplateLine(), $stream->getSourceContext());
         }
 
         $stream->expect(Token::BLOCK_END_TYPE);
@@ -84,17 +77,12 @@ class TransTokenParser extends AbstractTokenParser
         return new TransNode($body, $domain, $count, $vars, $locale, $lineno, $this->getTag());
     }
 
-    public function decideTransFork($token)
+    public function decideTransFork(Token $token): bool
     {
-        return $token->test(array('endtrans'));
+        return $token->test(['endtrans']);
     }
 
-    /**
-     * Gets the tag name associated with this token parser.
-     *
-     * @return string The tag name
-     */
-    public function getTag()
+    public function getTag(): string
     {
         return 'trans';
     }

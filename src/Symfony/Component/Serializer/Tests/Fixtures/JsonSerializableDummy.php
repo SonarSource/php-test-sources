@@ -13,13 +13,13 @@ namespace Symfony\Component\Serializer\Tests\Fixtures;
 
 class JsonSerializableDummy implements \JsonSerializable
 {
-    public function jsonSerialize()
+    public function jsonSerialize(): array
     {
-        return array(
+        return [
             'foo' => 'a',
             'bar' => 'b',
             'baz' => 'c',
             'qux' => $this,
-        );
+        ];
     }
 }

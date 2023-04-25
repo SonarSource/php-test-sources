@@ -11,49 +11,65 @@
 
 namespace Symfony\Component\Routing\Tests\Annotation;
 
+use Doctrine\Common\Annotations\AnnotationReader;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Tests\Fixtures\AnnotationFixtures\FooController;
+use Symfony\Component\Routing\Tests\Fixtures\AttributeFixtures\FooController as FooAttributesController;
 
 class RouteTest extends TestCase
 {
-    /**
-     * @expectedException \BadMethodCallException
-     */
-    public function testInvalidRouteParameter()
+    private function getMethodAnnotation(string $method, bool $attributes): Route
     {
-        $route = new Route(array('foo' => 'bar'));
-    }
+        $class = $attributes ? FooAttributesController::class : FooController::class;
+        $reflection = new \ReflectionMethod($class, $method);
 
-    /**
-     * @expectedException \BadMethodCallException
-     */
-    public function testTryingToSetLocalesDirectly()
-    {
-        $route = new Route(array('locales' => array('nl' => 'bar')));
+        if ($attributes) {
+            $attributes = $reflection->getAttributes(Route::class);
+            $route = $attributes[0]->newInstance();
+        } else {
+            $reader = new AnnotationReader();
+            $route = $reader->getMethodAnnotation($reflection, Route::class);
+        }
+
+        if (!$route instanceof Route) {
+            throw new \Exception('Can\'t parse annotation');
+        }
+
+        return $route;
     }
 
     /**
      * @dataProvider getValidParameters
      */
-    public function testRouteParameters($parameter, $value, $getter)
+    public function testLoadFromAttribute(string $methodName, string $getter, $expectedReturn)
     {
-        $route = new Route(array($parameter => $value));
-        $this->assertEquals($route->$getter(), $value);
+        $route = $this->getMethodAnnotation($methodName, true);
+        $this->assertEquals($route->$getter(), $expectedReturn);
     }
 
-    public function getValidParameters()
+    /**
+     * @dataProvider getValidParameters
+     */
+    public function testLoadFromDoctrineAnnotation(string $methodName, string $getter, $expectedReturn)
     {
-        return array(
-            array('value', '/Blog', 'getPath'),
-            array('requirements', array('locale' => 'en'), 'getRequirements'),
-            array('options', array('compiler_class' => 'RouteCompiler'), 'getOptions'),
-            array('name', 'blog_index', 'getName'),
-            array('defaults', array('_controller' => 'MyBlogBundle:Blog:index'), 'getDefaults'),
-            array('schemes', array('https'), 'getSchemes'),
-            array('methods', array('GET', 'POST'), 'getMethods'),
-            array('host', '{locale}.example.com', 'getHost'),
-            array('condition', 'context.getMethod() == "GET"', 'getCondition'),
-            array('value', array('nl' => '/hier', 'en' => '/here'), 'getLocalizedPaths'),
-        );
+        $route = $this->getMethodAnnotation($methodName, false);
+        $this->assertEquals($route->$getter(), $expectedReturn);
+    }
+
+    public static function getValidParameters(): iterable
+    {
+        return [
+            ['simplePath', 'getPath', '/Blog'],
+            ['localized', 'getLocalizedPaths', ['nl' => '/hier', 'en' => '/here']],
+            ['requirements', 'getRequirements', ['locale' => 'en']],
+            ['options', 'getOptions', ['compiler_class' => 'RouteCompiler']],
+            ['name', 'getName', 'blog_index'],
+            ['defaults', 'getDefaults', ['_controller' => 'MyBlogBundle:Blog:index']],
+            ['schemes', 'getSchemes', ['https']],
+            ['methods', 'getMethods', ['GET', 'POST']],
+            ['host', 'getHost', '{locale}.example.com'],
+            ['condition', 'getCondition', 'context.getMethod() == \'GET\''],
+        ];
     }
 }

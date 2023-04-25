@@ -1,9 +1,10 @@
 <?php
 
-$container->loadFromExtension('framework', array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
     'secret' => 's3cr3t',
-    'validation' => array(
+    'validation' => [
         'enabled' => true,
-        'static_method' => array('loadFoo', 'loadBar'),
-    ),
-));
+        'static_method' => ['loadFoo', 'loadBar'],
+    ],
+]);

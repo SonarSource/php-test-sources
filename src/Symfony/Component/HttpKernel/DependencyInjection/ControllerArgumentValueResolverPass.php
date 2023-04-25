@@ -12,6 +12,8 @@
 namespace Symfony\Component\HttpKernel\DependencyInjection;
 
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
+use Symfony\Component\DependencyInjection\Argument\ServiceLocatorArgument;
+use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Compiler\PriorityTaggedServiceTrait;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -28,37 +30,44 @@ class ControllerArgumentValueResolverPass implements CompilerPassInterface
 {
     use PriorityTaggedServiceTrait;
 
-    private $argumentResolverService;
-    private $argumentValueResolverTag;
-    private $traceableResolverStopwatch;
-
-    public function __construct(string $argumentResolverService = 'argument_resolver', string $argumentValueResolverTag = 'controller.argument_value_resolver', string $traceableResolverStopwatch = 'debug.stopwatch')
-    {
-        $this->argumentResolverService = $argumentResolverService;
-        $this->argumentValueResolverTag = $argumentValueResolverTag;
-        $this->traceableResolverStopwatch = $traceableResolverStopwatch;
-    }
-
+    /**
+     * @return void
+     */
     public function process(ContainerBuilder $container)
     {
-        if (!$container->hasDefinition($this->argumentResolverService)) {
+        if (!$container->hasDefinition('argument_resolver')) {
             return;
         }
 
-        $resolvers = $this->findAndSortTaggedServices($this->argumentValueResolverTag, $container);
+        $definitions = $container->getDefinitions();
+        $namedResolvers = $this->findAndSortTaggedServices(new TaggedIteratorArgument('controller.targeted_value_resolver', 'name', needsIndexes: true), $container);
+        $resolvers = $this->findAndSortTaggedServices(new TaggedIteratorArgument('controller.argument_value_resolver', 'name', needsIndexes: true), $container);
 
-        if ($container->getParameter('kernel.debug') && class_exists(Stopwatch::class) && $container->has($this->traceableResolverStopwatch)) {
-            foreach ($resolvers as $resolverReference) {
+        foreach ($resolvers as $name => $resolverReference) {
+            $id = (string) $resolverReference;
+
+            if ($definitions[$id]->hasTag('controller.targeted_value_resolver')) {
+                unset($resolvers[$name]);
+            } else {
+                $namedResolvers[$name] ??= clone $resolverReference;
+            }
+        }
+
+        $resolvers = array_values($resolvers);
+
+        if ($container->getParameter('kernel.debug') && class_exists(Stopwatch::class) && $container->has('debug.stopwatch')) {
+            foreach ($resolvers + $namedResolvers as $resolverReference) {
                 $id = (string) $resolverReference;
                 $container->register("debug.$id", TraceableValueResolver::class)
                     ->setDecoratedService($id)
-                    ->setArguments(array(new Reference("debug.$id.inner"), new Reference($this->traceableResolverStopwatch)));
+                    ->setArguments([new Reference("debug.$id.inner"), new Reference('debug.stopwatch')]);
             }
         }
 
         $container
-            ->getDefinition($this->argumentResolverService)
+            ->getDefinition('argument_resolver')
             ->replaceArgument(1, new IteratorArgument($resolvers))
+            ->setArgument(2, new ServiceLocatorArgument($namedResolvers))
         ;
     }
 }

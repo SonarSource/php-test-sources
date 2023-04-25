@@ -23,13 +23,11 @@ class Configuration implements ConfigurationInterface
         $this->customConfig = $customConfig;
     }
 
-    public function getConfigTreeBuilder()
+    public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('test');
 
-        if ($this->customConfig) {
-            $this->customConfig->addConfiguration($treeBuilder->getRootNode());
-        }
+        $this->customConfig?->addConfiguration($treeBuilder->getRootNode());
 
         return $treeBuilder;
     }

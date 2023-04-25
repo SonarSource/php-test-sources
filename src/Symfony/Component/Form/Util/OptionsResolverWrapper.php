@@ -22,69 +22,88 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  */
 class OptionsResolverWrapper extends OptionsResolver
 {
-    private $undefined = array();
+    private array $undefined = [];
 
-    public function setNormalizer($option, \Closure $normalizer)
+    /**
+     * @return $this
+     */
+    public function setNormalizer(string $option, \Closure $normalizer): static
     {
         try {
             parent::setNormalizer($option, $normalizer);
-        } catch (UndefinedOptionsException $e) {
+        } catch (UndefinedOptionsException) {
             $this->undefined[$option] = true;
         }
 
         return $this;
     }
 
-    public function setAllowedValues($option, $allowedValues)
+    /**
+     * @return $this
+     */
+    public function setAllowedValues(string $option, mixed $allowedValues): static
     {
         try {
             parent::setAllowedValues($option, $allowedValues);
-        } catch (UndefinedOptionsException $e) {
+        } catch (UndefinedOptionsException) {
             $this->undefined[$option] = true;
         }
 
         return $this;
     }
 
-    public function addAllowedValues($option, $allowedValues)
+    /**
+     * @return $this
+     */
+    public function addAllowedValues(string $option, mixed $allowedValues): static
     {
         try {
             parent::addAllowedValues($option, $allowedValues);
-        } catch (UndefinedOptionsException $e) {
+        } catch (UndefinedOptionsException) {
             $this->undefined[$option] = true;
         }
 
         return $this;
     }
 
-    public function setAllowedTypes($option, $allowedTypes)
+    /**
+     * @param string|array $allowedTypes
+     *
+     * @return $this
+     */
+    public function setAllowedTypes(string $option, $allowedTypes): static
     {
         try {
             parent::setAllowedTypes($option, $allowedTypes);
-        } catch (UndefinedOptionsException $e) {
+        } catch (UndefinedOptionsException) {
             $this->undefined[$option] = true;
         }
 
         return $this;
     }
 
-    public function addAllowedTypes($option, $allowedTypes)
+    /**
+     * @param string|array $allowedTypes
+     *
+     * @return $this
+     */
+    public function addAllowedTypes(string $option, $allowedTypes): static
     {
         try {
             parent::addAllowedTypes($option, $allowedTypes);
-        } catch (UndefinedOptionsException $e) {
+        } catch (UndefinedOptionsException) {
             $this->undefined[$option] = true;
         }
 
         return $this;
     }
 
-    public function resolve(array $options = array())
+    public function resolve(array $options = []): array
     {
         throw new AccessException('Resolve options is not supported.');
     }
 
-    public function getUndefinedOptions()
+    public function getUndefinedOptions(): array
     {
         return array_keys($this->undefined);
     }

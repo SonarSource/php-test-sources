@@ -11,41 +11,45 @@
 
 namespace Symfony\Component\Lock\Tests\Store;
 
+use PHPUnit\Framework\SkippedTestSuiteError;
+use Symfony\Component\Lock\Exception\InvalidTtlException;
+use Symfony\Component\Lock\Key;
+use Symfony\Component\Lock\PersistingStoreInterface;
 use Symfony\Component\Lock\Store\MemcachedStore;
 
 /**
  * @author Jérémy Derussé <jeremy@derusse.com>
  *
  * @requires extension memcached
+ *
+ * @group integration
  */
-class MemcachedStoreTest extends AbstractStoreTest
+class MemcachedStoreTest extends AbstractStoreTestCase
 {
     use ExpiringStoreTestTrait;
 
-    public static function setupBeforeClass()
+    public static function setUpBeforeClass(): void
     {
+        if (version_compare(phpversion('memcached'), '3.1.6', '<')) {
+            throw new SkippedTestSuiteError('Extension memcached > 3.1.5 required.');
+        }
+
         $memcached = new \Memcached();
         $memcached->addServer(getenv('MEMCACHED_HOST'), 11211);
         $memcached->get('foo');
         $code = $memcached->getResultCode();
 
         if (\Memcached::RES_SUCCESS !== $code && \Memcached::RES_NOTFOUND !== $code) {
-            self::markTestSkipped('Unable to connect to the memcache host');
+            throw new SkippedTestSuiteError('Unable to connect to the memcache host');
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
     protected function getClockDelay()
     {
         return 1000000;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getStore()
+    public function getStore(): PersistingStoreInterface
     {
         $memcached = new \Memcached();
         $memcached->addServer(getenv('MEMCACHED_HOST'), 11211);
@@ -56,5 +60,12 @@ class MemcachedStoreTest extends AbstractStoreTest
     public function testAbortAfterExpiration()
     {
         $this->markTestSkipped('Memcached expects a TTL greater than 1 sec. Simulating a slow network is too hard');
+    }
+
+    public function testInvalidTtl()
+    {
+        $this->expectException(InvalidTtlException::class);
+        $store = $this->getStore();
+        $store->putOffExpiration(new Key('toto'), 0.1);
     }
 }

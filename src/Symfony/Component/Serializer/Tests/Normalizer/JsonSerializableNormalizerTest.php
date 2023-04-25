@@ -11,31 +11,44 @@
 
 namespace Symfony\Component\Serializer\Tests\Normalizer;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Serializer\Exception\CircularReferenceException;
+use Symfony\Component\Serializer\Exception\InvalidArgumentException;
 use Symfony\Component\Serializer\Normalizer\JsonSerializableNormalizer;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+use Symfony\Component\Serializer\Serializer;
 use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Serializer\Tests\Fixtures\JsonSerializableCircularReferenceDummy;
 use Symfony\Component\Serializer\Tests\Fixtures\JsonSerializableDummy;
+use Symfony\Component\Serializer\Tests\Normalizer\Features\CircularReferenceTestTrait;
 
 /**
  * @author Fred Cox <mcfedr@gmail.com>
  */
 class JsonSerializableNormalizerTest extends TestCase
 {
+    use CircularReferenceTestTrait;
+
     /**
      * @var JsonSerializableNormalizer
      */
     private $normalizer;
 
     /**
-     * @var \PHPUnit_Framework_MockObject_MockObject|SerializerInterface
+     * @var MockObject&JsonSerializerNormalizer
      */
     private $serializer;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->serializer = $this->getMockBuilder(JsonSerializerNormalizer::class)->getMock();
-        $this->normalizer = new JsonSerializableNormalizer();
+        $this->createNormalizer();
+    }
+
+    private function createNormalizer(array $defaultContext = [])
+    {
+        $this->serializer = $this->createMock(JsonSerializerNormalizer::class);
+        $this->normalizer = new JsonSerializableNormalizer(null, null, $defaultContext);
         $this->normalizer->setSerializer($this->serializer);
     }
 
@@ -50,42 +63,51 @@ class JsonSerializableNormalizerTest extends TestCase
         $this->serializer
             ->expects($this->once())
             ->method('normalize')
-            ->will($this->returnCallback(function ($data) {
-                $this->assertArraySubset(array('foo' => 'a', 'bar' => 'b', 'baz' => 'c'), $data);
+            ->willReturnCallback(function ($data) {
+                $this->assertSame(['foo' => 'a', 'bar' => 'b', 'baz' => 'c'], array_diff_key($data, ['qux' => '']));
 
                 return 'string_object';
-            }))
+            })
         ;
 
         $this->assertEquals('string_object', $this->normalizer->normalize(new JsonSerializableDummy()));
     }
 
-    /**
-     * @expectedException \Symfony\Component\Serializer\Exception\CircularReferenceException
-     */
     public function testCircularNormalize()
     {
-        $this->normalizer->setCircularReferenceLimit(1);
+        $this->expectException(CircularReferenceException::class);
+        $this->createNormalizer([JsonSerializableNormalizer::CIRCULAR_REFERENCE_LIMIT => 1]);
 
         $this->serializer
             ->expects($this->once())
             ->method('normalize')
-            ->will($this->returnCallback(function ($data, $format, $context) {
+            ->willReturnCallback(function ($data, $format, $context) {
                 $this->normalizer->normalize($data['qux'], $format, $context);
 
                 return 'string_object';
-            }))
+            })
         ;
 
         $this->assertEquals('string_object', $this->normalizer->normalize(new JsonSerializableDummy()));
     }
 
-    /**
-     * @expectedException \Symfony\Component\Serializer\Exception\InvalidArgumentException
-     * @expectedExceptionMessage The object must implement "JsonSerializable".
-     */
+    protected function getNormalizerForCircularReference(array $defaultContext): JsonSerializableNormalizer
+    {
+        $normalizer = new JsonSerializableNormalizer(null, null, $defaultContext);
+        new Serializer([$normalizer]);
+
+        return $normalizer;
+    }
+
+    protected function getSelfReferencingModel()
+    {
+        return new JsonSerializableCircularReferenceDummy();
+    }
+
     public function testInvalidDataThrowException()
     {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The object must implement "JsonSerializable".');
         $this->normalizer->normalize(new \stdClass());
     }
 }
