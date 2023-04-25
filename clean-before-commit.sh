@@ -25,7 +25,7 @@ find . -name "*.zip" -delete
 echo "Remove unintendent files... Done"
 
 echo "Big files (please review them):"
-find . -size +250k
+find . -size +250k | grep --invert-match "Symfony/Component/Intl/Resources/data/transliterator/emoji/"
 
 echo "Done"
 echo "==============================="
