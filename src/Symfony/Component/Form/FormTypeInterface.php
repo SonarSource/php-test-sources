@@ -24,10 +24,11 @@ interface FormTypeInterface
      * This method is called for each type in the hierarchy starting from the
      * top most type. Type extensions can further modify the form.
      *
-     * @see FormTypeExtensionInterface::buildForm()
+     * @param array<string, mixed> $options
      *
-     * @param FormBuilderInterface $builder The form builder
-     * @param array                $options The options
+     * @return void
+     *
+     * @see FormTypeExtensionInterface::buildForm()
      */
     public function buildForm(FormBuilderInterface $builder, array $options);
 
@@ -41,11 +42,11 @@ interface FormTypeInterface
      * This means that you cannot access child views in this method. If you need
      * to do so, move your logic to {@link finishView()} instead.
      *
-     * @see FormTypeExtensionInterface::buildView()
+     * @param array<string, mixed> $options
      *
-     * @param FormView      $view    The view
-     * @param FormInterface $form    The form
-     * @param array         $options The options
+     * @return void
+     *
+     * @see FormTypeExtensionInterface::buildView()
      */
     public function buildView(FormView $view, FormInterface $form, array $options);
 
@@ -60,18 +61,18 @@ interface FormTypeInterface
      * such logic in this method that actually accesses child views. For everything
      * else you are recommended to implement {@link buildView()} instead.
      *
-     * @see FormTypeExtensionInterface::finishView()
+     * @param array<string, mixed> $options
      *
-     * @param FormView      $view    The view
-     * @param FormInterface $form    The form
-     * @param array         $options The options
+     * @return void
+     *
+     * @see FormTypeExtensionInterface::finishView()
      */
     public function finishView(FormView $view, FormInterface $form, array $options);
 
     /**
      * Configures the options for this type.
      *
-     * @param OptionsResolver $resolver The resolver for the options
+     * @return void
      */
     public function configureOptions(OptionsResolver $resolver);
 
@@ -81,14 +82,14 @@ interface FormTypeInterface
      * The block prefix defaults to the underscored short class name with
      * the "Type" suffix removed (e.g. "UserProfileType" => "user_profile").
      *
-     * @return string The prefix of the template block name
+     * @return string
      */
     public function getBlockPrefix();
 
     /**
      * Returns the name of the parent type.
      *
-     * @return string|null The name of the parent type if any, null otherwise
+     * @return string|null
      */
     public function getParent();
 }

@@ -12,16 +12,14 @@
 namespace Symfony\Bundle\FrameworkBundle\CacheWarmer;
 
 use Doctrine\Common\Annotations\AnnotationException;
-use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Adapter\PhpArrayAdapter;
-use Symfony\Component\Validator\Mapping\Cache\Psr6Cache;
 use Symfony\Component\Validator\Mapping\Factory\LazyLoadingMetadataFactory;
 use Symfony\Component\Validator\Mapping\Loader\LoaderChain;
 use Symfony\Component\Validator\Mapping\Loader\LoaderInterface;
 use Symfony\Component\Validator\Mapping\Loader\XmlFileLoader;
 use Symfony\Component\Validator\Mapping\Loader\YamlFileLoader;
-use Symfony\Component\Validator\ValidatorBuilderInterface;
+use Symfony\Component\Validator\ValidatorBuilder;
 
 /**
  * Warms up XML and YAML validator metadata.
@@ -30,31 +28,25 @@ use Symfony\Component\Validator\ValidatorBuilderInterface;
  */
 class ValidatorCacheWarmer extends AbstractPhpFileCacheWarmer
 {
-    private $validatorBuilder;
+    private ValidatorBuilder $validatorBuilder;
 
     /**
      * @param string $phpArrayFile The PHP file where metadata are cached
      */
-    public function __construct(ValidatorBuilderInterface $validatorBuilder, string $phpArrayFile)
+    public function __construct(ValidatorBuilder $validatorBuilder, string $phpArrayFile)
     {
-        if (2 < \func_num_args() && \func_get_arg(2) instanceof CacheItemPoolInterface) {
-            @trigger_error(sprintf('The CacheItemPoolInterface $fallbackPool argument of "%s()" is deprecated since Symfony 4.2, you should not pass it anymore.', __METHOD__), E_USER_DEPRECATED);
-        }
         parent::__construct($phpArrayFile);
         $this->validatorBuilder = $validatorBuilder;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function doWarmUp($cacheDir, ArrayAdapter $arrayAdapter)
+    protected function doWarmUp(string $cacheDir, ArrayAdapter $arrayAdapter): bool
     {
         if (!method_exists($this->validatorBuilder, 'getLoaders')) {
             return false;
         }
 
         $loaders = $this->validatorBuilder->getLoaders();
-        $metadataFactory = new LazyLoadingMetadataFactory(new LoaderChain($loaders), new Psr6Cache($arrayAdapter));
+        $metadataFactory = new LazyLoadingMetadataFactory(new LoaderChain($loaders), $arrayAdapter);
 
         foreach ($this->extractSupportedLoaders($loaders) as $loader) {
             foreach ($loader->getMappedClasses() as $mappedClass) {
@@ -62,10 +54,10 @@ class ValidatorCacheWarmer extends AbstractPhpFileCacheWarmer
                     if ($metadataFactory->hasMetadataFor($mappedClass)) {
                         $metadataFactory->getMetadataFor($mappedClass);
                     }
-                } catch (\ReflectionException $e) {
-                    // ignore failing reflection
-                } catch (AnnotationException $e) {
+                } catch (AnnotationException) {
                     // ignore failing annotations
+                } catch (\Exception $e) {
+                    $this->ignoreAutoloadException($mappedClass, $e);
                 }
             }
         }
@@ -73,10 +65,15 @@ class ValidatorCacheWarmer extends AbstractPhpFileCacheWarmer
         return true;
     }
 
-    protected function warmUpPhpArrayAdapter(PhpArrayAdapter $phpArrayAdapter, array $values)
+    /**
+     * @return string[] A list of classes to preload on PHP 7.4+
+     */
+    protected function warmUpPhpArrayAdapter(PhpArrayAdapter $phpArrayAdapter, array $values): array
     {
         // make sure we don't cache null values
-        parent::warmUpPhpArrayAdapter($phpArrayAdapter, array_filter($values));
+        $values = array_filter($values, fn ($val) => null !== $val);
+
+        return parent::warmUpPhpArrayAdapter($phpArrayAdapter, $values);
     }
 
     /**
@@ -84,9 +81,9 @@ class ValidatorCacheWarmer extends AbstractPhpFileCacheWarmer
      *
      * @return XmlFileLoader[]|YamlFileLoader[]
      */
-    private function extractSupportedLoaders(array $loaders)
+    private function extractSupportedLoaders(array $loaders): array
     {
-        $supportedLoaders = array();
+        $supportedLoaders = [];
 
         foreach ($loaders as $loader) {
             if ($loader instanceof XmlFileLoader || $loader instanceof YamlFileLoader) {

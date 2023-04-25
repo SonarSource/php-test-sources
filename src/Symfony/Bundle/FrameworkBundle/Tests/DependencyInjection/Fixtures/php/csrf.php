@@ -1,9 +1,10 @@
 <?php
 
-$container->loadFromExtension('framework', array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
     'csrf_protection' => true,
-    'form' => true,
-    'session' => array(
+    'session' => [
+        'storage_factory_id' => 'session.storage.factory.native',
         'handler_id' => null,
-    ),
-));
+    ],
+]);

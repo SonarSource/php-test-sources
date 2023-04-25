@@ -49,6 +49,22 @@ fragment_inlined:
     path:     /fragment_inlined
     defaults: { _controller: Symfony\Bundle\FrameworkBundle\Tests\Functional\Bundle\TestBundle\Controller\FragmentController::inlinedAction }
 
+fragment_uri:
+    path:     /fragment_uri
+    defaults: { _controller: Symfony\Bundle\FrameworkBundle\Tests\Functional\Bundle\TestBundle\Controller\FragmentController::fragmentUriAction }
+
 array_controller:
     path:     /array_controller
     defaults: { _controller: [ArrayController, someAction] }
+
+send_email:
+    path:     /send_email
+    defaults: { _controller: Symfony\Bundle\FrameworkBundle\Tests\Functional\Bundle\TestBundle\Controller\EmailController::indexAction }
+
+uid:
+    resource: "../../Controller/UidController.php"
+    type: "annotation"
+
+send_notification:
+    path:     /send_notification
+    defaults: { _controller: Symfony\Bundle\FrameworkBundle\Tests\Functional\Bundle\TestBundle\Controller\NotificationController::indexAction }

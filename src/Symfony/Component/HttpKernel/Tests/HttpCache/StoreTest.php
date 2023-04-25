@@ -12,8 +12,10 @@
 namespace Symfony\Component\HttpKernel\Tests\HttpCache;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\HttpCache\HttpCache;
 use Symfony\Component\HttpKernel\HttpCache\Store;
 
 class StoreTest extends TestCase
@@ -26,17 +28,17 @@ class StoreTest extends TestCase
      */
     protected $store;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->request = Request::create('/');
-        $this->response = new Response('hello world', 200, array());
+        $this->response = new Response('hello world', 200, []);
 
         HttpCacheTestCase::clearDirectory(sys_get_temp_dir().'/http_cache');
 
         $this->store = new Store(sys_get_temp_dir().'/http_cache');
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         $this->store = null;
         $this->request = null;
@@ -52,7 +54,7 @@ class StoreTest extends TestCase
 
     public function testUnlockFileThatDoesExist()
     {
-        $cacheKey = $this->storeSimpleEntry();
+        $this->storeSimpleEntry();
         $this->store->lock($this->request);
 
         $this->assertTrue($this->store->unlock($this->request));
@@ -92,9 +94,63 @@ class StoreTest extends TestCase
     {
         $cacheKey = $this->storeSimpleEntry();
         $entries = $this->getStoreMetadata($cacheKey);
-        list($req, $res) = $entries[0];
+        [, $res] = $entries[0];
 
-        $this->assertEquals('en9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08', $res['x-content-digest'][0]);
+        $this->assertEquals('en6c78e0e3bd51d358d01e758642b85fb8', $res['x-content-digest'][0]);
+    }
+
+    public function testDoesNotTrustXContentDigestFromUpstream()
+    {
+        $response = new Response('test', 200, ['X-Content-Digest' => 'untrusted-from-elsewhere']);
+
+        $cacheKey = $this->store->write($this->request, $response);
+        $entries = $this->getStoreMetadata($cacheKey);
+        [, $res] = $entries[0];
+
+        $this->assertEquals('en6c78e0e3bd51d358d01e758642b85fb8', $res['x-content-digest'][0]);
+        $this->assertEquals('en6c78e0e3bd51d358d01e758642b85fb8', $response->headers->get('X-Content-Digest'));
+    }
+
+    public function testWritesResponseEvenIfXContentDigestIsPresent()
+    {
+        // Prime the store
+        $this->store->write($this->request, new Response('test', 200, ['X-Content-Digest' => 'untrusted-from-elsewhere']));
+
+        $response = $this->store->lookup($this->request);
+        $this->assertNotNull($response);
+    }
+
+    public function testWritingARestoredResponseDoesNotCorruptCache()
+    {
+        /*
+         * This covers the regression reported in https://github.com/symfony/symfony/issues/37174.
+         *
+         * A restored response does *not* load the body, but only keep the file path in a special X-Body-File
+         * header. For reasons (?), the file path was also used as the restored response body.
+         * It would be up to others (HttpCache...?) to honor this header and actually load the response content
+         * from there.
+         *
+         * When a restored response was stored again, the Store itself would ignore the header. In the first
+         * step, this would compute a new Content Digest based on the file path in the restored response body;
+         * this is covered by "Checkpoint 1" below. But, since the X-Body-File header was left untouched (Checkpoint 2), downstream
+         * code (HttpCache...) would not immediately notice.
+         *
+         * Only upon performing the lookup for a second time, we'd get a Response where the (wrong) Content Digest
+         * is also reflected in the X-Body-File header, this time also producing wrong content when the downstream
+         * evaluates it.
+         */
+        $this->store->write($this->request, $this->response);
+        $digest = $this->response->headers->get('X-Content-Digest');
+        $path = $this->getStorePath($digest);
+
+        $response = $this->store->lookup($this->request);
+        $this->store->write($this->request, $response);
+        $this->assertEquals($digest, $response->headers->get('X-Content-Digest')); // Checkpoint 1
+        $this->assertEquals($path, $response->headers->get('X-Body-File')); // Checkpoint 2
+
+        $response = $this->store->lookup($this->request);
+        $this->assertEquals($digest, $response->headers->get('X-Content-Digest'));
+        $this->assertEquals($path, $response->headers->get('X-Body-File'));
     }
 
     public function testFindsAStoredEntryWithLookup()
@@ -103,12 +159,12 @@ class StoreTest extends TestCase
         $response = $this->store->lookup($this->request);
 
         $this->assertNotNull($response);
-        $this->assertInstanceOf('Symfony\Component\HttpFoundation\Response', $response);
+        $this->assertInstanceOf(Response::class, $response);
     }
 
     public function testDoesNotFindAnEntryWithLookupWhenNoneExists()
     {
-        $request = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar'));
+        $request = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar']);
 
         $this->assertNull($this->store->lookup($request));
     }
@@ -137,14 +193,14 @@ class StoreTest extends TestCase
         $this->storeSimpleEntry();
         $response = $this->store->lookup($this->request);
 
-        $this->assertEquals($response->headers->all(), array_merge(array('content-length' => 4, 'x-body-file' => array($this->getStorePath($response->headers->get('X-Content-Digest')))), $this->response->headers->all()));
+        $this->assertEquals($response->headers->all(), array_merge(['content-length' => 4, 'x-body-file' => [$this->getStorePath($response->headers->get('X-Content-Digest'))]], $this->response->headers->all()));
     }
 
     public function testRestoresResponseContentFromEntityStoreWithLookup()
     {
         $this->storeSimpleEntry();
         $response = $this->store->lookup($this->request);
-        $this->assertEquals($this->getStorePath('en'.hash('sha256', 'test')), $response->getContent());
+        $this->assertEquals($this->getStorePath('en'.hash('xxh128', 'test')), $response->getContent());
     }
 
     public function testInvalidatesMetaAndEntityStoreEntriesWithInvalidate()
@@ -152,7 +208,7 @@ class StoreTest extends TestCase
         $this->storeSimpleEntry();
         $this->store->invalidate($this->request);
         $response = $this->store->lookup($this->request);
-        $this->assertInstanceOf('Symfony\Component\HttpFoundation\Response', $response);
+        $this->assertInstanceOf(Response::class, $response);
         $this->assertFalse($response->isFresh());
     }
 
@@ -165,9 +221,9 @@ class StoreTest extends TestCase
 
     public function testDoesNotReturnEntriesThatVaryWithLookup()
     {
-        $req1 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar'));
-        $req2 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Bling', 'HTTP_BAR' => 'Bam'));
-        $res = new Response('test', 200, array('Vary' => 'Foo Bar'));
+        $req1 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar']);
+        $req2 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Bling', 'HTTP_BAR' => 'Bam']);
+        $res = new Response('test', 200, ['Vary' => 'Foo Bar']);
         $this->store->write($req1, $res);
 
         $this->assertNull($this->store->lookup($req2));
@@ -175,9 +231,9 @@ class StoreTest extends TestCase
 
     public function testDoesNotReturnEntriesThatSlightlyVaryWithLookup()
     {
-        $req1 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar'));
-        $req2 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bam'));
-        $res = new Response('test', 200, array('Vary' => array('Foo', 'Bar')));
+        $req1 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar']);
+        $req2 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bam']);
+        $res = new Response('test', 200, ['Vary' => ['Foo', 'Bar']]);
         $this->store->write($req1, $res);
 
         $this->assertNull($this->store->lookup($req2));
@@ -185,51 +241,51 @@ class StoreTest extends TestCase
 
     public function testStoresMultipleResponsesForEachVaryCombination()
     {
-        $req1 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar'));
-        $res1 = new Response('test 1', 200, array('Vary' => 'Foo Bar'));
+        $req1 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar']);
+        $res1 = new Response('test 1', 200, ['Vary' => 'Foo Bar']);
         $key = $this->store->write($req1, $res1);
 
-        $req2 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Bling', 'HTTP_BAR' => 'Bam'));
-        $res2 = new Response('test 2', 200, array('Vary' => 'Foo Bar'));
+        $req2 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Bling', 'HTTP_BAR' => 'Bam']);
+        $res2 = new Response('test 2', 200, ['Vary' => 'Foo Bar']);
         $this->store->write($req2, $res2);
 
-        $req3 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Baz', 'HTTP_BAR' => 'Boom'));
-        $res3 = new Response('test 3', 200, array('Vary' => 'Foo Bar'));
+        $req3 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Baz', 'HTTP_BAR' => 'Boom']);
+        $res3 = new Response('test 3', 200, ['Vary' => 'Foo Bar']);
         $this->store->write($req3, $res3);
 
-        $this->assertEquals($this->getStorePath('en'.hash('sha256', 'test 3')), $this->store->lookup($req3)->getContent());
-        $this->assertEquals($this->getStorePath('en'.hash('sha256', 'test 2')), $this->store->lookup($req2)->getContent());
-        $this->assertEquals($this->getStorePath('en'.hash('sha256', 'test 1')), $this->store->lookup($req1)->getContent());
+        $this->assertEquals($this->getStorePath('en'.hash('xxh128', 'test 3')), $this->store->lookup($req3)->getContent());
+        $this->assertEquals($this->getStorePath('en'.hash('xxh128', 'test 2')), $this->store->lookup($req2)->getContent());
+        $this->assertEquals($this->getStorePath('en'.hash('xxh128', 'test 1')), $this->store->lookup($req1)->getContent());
 
         $this->assertCount(3, $this->getStoreMetadata($key));
     }
 
     public function testOverwritesNonVaryingResponseWithStore()
     {
-        $req1 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar'));
-        $res1 = new Response('test 1', 200, array('Vary' => 'Foo Bar'));
-        $key = $this->store->write($req1, $res1);
-        $this->assertEquals($this->getStorePath('en'.hash('sha256', 'test 1')), $this->store->lookup($req1)->getContent());
+        $req1 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar']);
+        $res1 = new Response('test 1', 200, ['Vary' => 'Foo Bar']);
+        $this->store->write($req1, $res1);
+        $this->assertEquals($this->getStorePath('en'.hash('xxh128', 'test 1')), $this->store->lookup($req1)->getContent());
 
-        $req2 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Bling', 'HTTP_BAR' => 'Bam'));
-        $res2 = new Response('test 2', 200, array('Vary' => 'Foo Bar'));
+        $req2 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Bling', 'HTTP_BAR' => 'Bam']);
+        $res2 = new Response('test 2', 200, ['Vary' => 'Foo Bar']);
         $this->store->write($req2, $res2);
-        $this->assertEquals($this->getStorePath('en'.hash('sha256', 'test 2')), $this->store->lookup($req2)->getContent());
+        $this->assertEquals($this->getStorePath('en'.hash('xxh128', 'test 2')), $this->store->lookup($req2)->getContent());
 
-        $req3 = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar'));
-        $res3 = new Response('test 3', 200, array('Vary' => 'Foo Bar'));
+        $req3 = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar']);
+        $res3 = new Response('test 3', 200, ['Vary' => 'Foo Bar']);
         $key = $this->store->write($req3, $res3);
-        $this->assertEquals($this->getStorePath('en'.hash('sha256', 'test 3')), $this->store->lookup($req3)->getContent());
+        $this->assertEquals($this->getStorePath('en'.hash('xxh128', 'test 3')), $this->store->lookup($req3)->getContent());
 
         $this->assertCount(2, $this->getStoreMetadata($key));
     }
 
     public function testLocking()
     {
-        $req = Request::create('/test', 'get', array(), array(), array(), array('HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar'));
+        $req = Request::create('/test', 'get', [], [], [], ['HTTP_FOO' => 'Foo', 'HTTP_BAR' => 'Bar']);
         $this->assertTrue($this->store->lock($req));
 
-        $path = $this->store->lock($req);
+        $this->store->lock($req);
         $this->assertTrue($this->store->isLocked($req));
 
         $this->store->unlock($req);
@@ -263,14 +319,23 @@ class StoreTest extends TestCase
         $this->assertEmpty($this->getStoreMetadata($requestHttps));
     }
 
-    protected function storeSimpleEntry($path = null, $headers = array())
+    public function testDoesNotStorePrivateHeaders()
     {
-        if (null === $path) {
-            $path = '/test';
-        }
+        $request = Request::create('https://example.com/foo');
+        $response = new Response('foo');
+        $response->headers->setCookie(Cookie::fromString('foo=bar'));
 
-        $this->request = Request::create($path, 'get', array(), array(), array(), $headers);
-        $this->response = new Response('test', 200, array('Cache-Control' => 'max-age=420'));
+        $this->store->write($request, $response);
+        $this->assertArrayNotHasKey('set-cookie', $this->getStoreMetadata($request)[0][1]);
+        $this->assertNotEmpty($response->headers->getCookies());
+    }
+
+    protected function storeSimpleEntry($path = null, $headers = [])
+    {
+        $path ??= '/test';
+
+        $this->request = Request::create($path, 'get', [], [], [], $headers);
+        $this->response = new Response('test', 200, ['Cache-Control' => 'max-age=420']);
 
         return $this->store->write($this->request, $this->response);
     }
@@ -279,11 +344,9 @@ class StoreTest extends TestCase
     {
         $r = new \ReflectionObject($this->store);
         $m = $r->getMethod('getMetadata');
-        $m->setAccessible(true);
 
         if ($key instanceof Request) {
             $m1 = $r->getMethod('getCacheKey');
-            $m1->setAccessible(true);
             $key = $m1->invoke($this->store, $key);
         }
 
@@ -294,7 +357,6 @@ class StoreTest extends TestCase
     {
         $r = new \ReflectionObject($this->store);
         $m = $r->getMethod('getPath');
-        $m->setAccessible(true);
 
         return $m->invoke($this->store, $key);
     }

@@ -13,6 +13,7 @@ namespace Symfony\Component\Messenger\Tests\DataCollector;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\DataCollector\MessengerDataCollector;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Tests\Fixtures\DummyMessage;
 use Symfony\Component\Messenger\TraceableMessageBus;
@@ -27,7 +28,7 @@ class MessengerDataCollectorTest extends TestCase
     /** @var CliDumper */
     private $dumper;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->dumper = new CliDumper();
         $this->dumper->setColors(false);
@@ -36,9 +37,10 @@ class MessengerDataCollectorTest extends TestCase
     public function testHandle()
     {
         $message = new DummyMessage('dummy message');
+        $envelope = new Envelope($message);
 
-        $bus = $this->getMockBuilder(MessageBusInterface::class)->getMock();
-        $bus->method('dispatch')->with($message);
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->method('dispatch')->with($message)->willReturn($envelope);
         $bus = new TraceableMessageBus($bus);
 
         $collector = new MessengerDataCollector();
@@ -48,14 +50,15 @@ class MessengerDataCollectorTest extends TestCase
 
         $collector->lateCollect();
 
-        $messages = iterator_to_array($collector->getMessages());
+        $messages = $collector->getMessages();
         $this->assertCount(1, $messages);
 
         $file = __FILE__;
         $expected = <<<DUMP
-array:4 [
+array:5 [
   "bus" => "default"
   "stamps" => []
+  "stamps_after_dispatch" => []
   "message" => array:2 [
     "type" => "Symfony\Component\Messenger\Tests\Fixtures\DummyMessage"
     "value" => Symfony\Component\Messenger\Tests\Fixtures\DummyMessage %A
@@ -77,8 +80,8 @@ DUMP;
     {
         $message = new DummyMessage('dummy message');
 
-        $bus = $this->getMockBuilder(MessageBusInterface::class)->getMock();
-        $bus->method('dispatch')->with($message)->will($this->throwException(new \RuntimeException('foo')));
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->method('dispatch')->with($message)->willThrowException(new \RuntimeException('foo'));
         $bus = new TraceableMessageBus($bus);
 
         $collector = new MessengerDataCollector();
@@ -93,14 +96,15 @@ DUMP;
 
         $collector->lateCollect();
 
-        $messages = iterator_to_array($collector->getMessages());
+        $messages = $collector->getMessages();
         $this->assertCount(1, $messages);
 
         $file = __FILE__;
         $this->assertStringMatchesFormat(<<<DUMP
-array:5 [
+array:6 [
   "bus" => "default"
   "stamps" => []
+  "stamps_after_dispatch" => []
   "message" => array:2 [
     "type" => "Symfony\Component\Messenger\Tests\Fixtures\DummyMessage"
     "value" => Symfony\Component\Messenger\Tests\Fixtures\DummyMessage %A
@@ -118,15 +122,17 @@ array:5 [
   ]
 ]
 DUMP
-        , $this->getDataAsString($messages[0]));
+            , $this->getDataAsString($messages[0]));
     }
 
     public function testKeepsOrderedDispatchCalls()
     {
-        $firstBus = $this->getMockBuilder(MessageBusInterface::class)->getMock();
+        $firstBus = $this->createMock(MessageBusInterface::class);
+        $firstBus->method('dispatch')->willReturn(new Envelope(new \stdClass()));
         $firstBus = new TraceableMessageBus($firstBus);
 
-        $secondBus = $this->getMockBuilder(MessageBusInterface::class)->getMock();
+        $secondBus = $this->createMock(MessageBusInterface::class);
+        $secondBus->method('dispatch')->willReturn(new Envelope(new \stdClass()));
         $secondBus = new TraceableMessageBus($secondBus);
 
         $collector = new MessengerDataCollector();
@@ -141,7 +147,7 @@ DUMP
 
         $collector->lateCollect();
 
-        $messages = iterator_to_array($collector->getMessages());
+        $messages = $collector->getMessages();
         $this->assertCount(5, $messages);
 
         $this->assertSame('#1', $messages[0]['message']['value']['message']);

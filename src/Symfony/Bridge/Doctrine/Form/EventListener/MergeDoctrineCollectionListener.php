@@ -27,17 +27,20 @@ use Symfony\Component\Form\FormEvents;
  */
 class MergeDoctrineCollectionListener implements EventSubscriberInterface
 {
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         // Higher priority than core MergeCollectionListener so that this one
         // is called before
-        return array(
-            FormEvents::SUBMIT => array(
-                array('onSubmit', 5),
-            ),
-        );
+        return [
+            FormEvents::SUBMIT => [
+                ['onSubmit', 5],
+            ],
+        ];
     }
 
+    /**
+     * @return void
+     */
     public function onSubmit(FormEvent $event)
     {
         $collection = $event->getForm()->getData();

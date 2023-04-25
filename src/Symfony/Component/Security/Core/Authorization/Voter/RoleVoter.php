@@ -12,42 +12,34 @@
 namespace Symfony\Component\Security\Core\Authorization\Voter;
 
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
-use Symfony\Component\Security\Core\Role\Role;
 
 /**
  * RoleVoter votes if any attribute starts with a given prefix.
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class RoleVoter implements VoterInterface
+class RoleVoter implements CacheableVoterInterface
 {
-    private $prefix;
+    private string $prefix;
 
     public function __construct(string $prefix = 'ROLE_')
     {
         $this->prefix = $prefix;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function vote(TokenInterface $token, $subject, array $attributes)
+    public function vote(TokenInterface $token, mixed $subject, array $attributes): int
     {
         $result = VoterInterface::ACCESS_ABSTAIN;
         $roles = $this->extractRoles($token);
 
         foreach ($attributes as $attribute) {
-            if ($attribute instanceof Role) {
-                $attribute = $attribute->getRole();
-            }
-
-            if (!\is_string($attribute) || 0 !== strpos($attribute, $this->prefix)) {
+            if (!\is_string($attribute) || !str_starts_with($attribute, $this->prefix)) {
                 continue;
             }
 
             $result = VoterInterface::ACCESS_DENIED;
             foreach ($roles as $role) {
-                if ($attribute === $role->getRole()) {
+                if ($attribute === $role) {
                     return VoterInterface::ACCESS_GRANTED;
                 }
             }
@@ -56,8 +48,21 @@ class RoleVoter implements VoterInterface
         return $result;
     }
 
+    public function supportsAttribute(string $attribute): bool
+    {
+        return str_starts_with($attribute, $this->prefix);
+    }
+
+    public function supportsType(string $subjectType): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array
+     */
     protected function extractRoles(TokenInterface $token)
     {
-        return $token->getRoles();
+        return $token->getRoleNames();
     }
 }

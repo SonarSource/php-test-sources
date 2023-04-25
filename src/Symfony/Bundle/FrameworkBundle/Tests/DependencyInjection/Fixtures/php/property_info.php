@@ -1,7 +1,8 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'property_info' => array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'property_info' => [
         'enabled' => true,
-    ),
-));
+    ],
+]);

@@ -13,6 +13,7 @@ namespace Symfony\Component\Serializer\Tests\Mapping\Factory;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Serializer\Exception\InvalidArgumentException;
 use Symfony\Component\Serializer\Mapping\ClassMetadata;
 use Symfony\Component\Serializer\Mapping\Factory\CacheClassMetadataFactory;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactoryInterface;
@@ -27,11 +28,11 @@ class CacheMetadataFactoryTest extends TestCase
     {
         $metadata = new ClassMetadata(Dummy::class);
 
-        $decorated = $this->getMockBuilder(ClassMetadataFactoryInterface::class)->getMock();
+        $decorated = $this->createMock(ClassMetadataFactoryInterface::class);
         $decorated
             ->expects($this->once())
             ->method('getMetadataFor')
-            ->will($this->returnValue($metadata))
+            ->willReturn($metadata)
         ;
 
         $factory = new CacheClassMetadataFactory($decorated, new ArrayAdapter());
@@ -43,11 +44,11 @@ class CacheMetadataFactoryTest extends TestCase
 
     public function testHasMetadataFor()
     {
-        $decorated = $this->getMockBuilder(ClassMetadataFactoryInterface::class)->getMock();
+        $decorated = $this->createMock(ClassMetadataFactoryInterface::class);
         $decorated
             ->expects($this->once())
             ->method('hasMetadataFor')
-            ->will($this->returnValue(true))
+            ->willReturn(true)
         ;
 
         $factory = new CacheClassMetadataFactory($decorated, new ArrayAdapter());
@@ -55,14 +56,28 @@ class CacheMetadataFactoryTest extends TestCase
         $this->assertTrue($factory->hasMetadataFor(Dummy::class));
     }
 
-    /**
-     * @expectedException \Symfony\Component\Serializer\Exception\InvalidArgumentException
-     */
     public function testInvalidClassThrowsException()
     {
-        $decorated = $this->getMockBuilder(ClassMetadataFactoryInterface::class)->getMock();
+        $this->expectException(InvalidArgumentException::class);
+        $decorated = $this->createMock(ClassMetadataFactoryInterface::class);
         $factory = new CacheClassMetadataFactory($decorated, new ArrayAdapter());
 
         $factory->getMetadataFor('Not\Exist');
+    }
+
+    public function testAnonymousClass()
+    {
+        $anonymousObject = new class() {
+        };
+
+        $metadata = new ClassMetadata($anonymousObject::class);
+        $decorated = $this->createMock(ClassMetadataFactoryInterface::class);
+        $decorated
+            ->expects($this->once())
+            ->method('getMetadataFor')
+            ->willReturn($metadata);
+
+        $factory = new CacheClassMetadataFactory($decorated, new ArrayAdapter());
+        $this->assertEquals($metadata, $factory->getMetadataFor($anonymousObject));
     }
 }

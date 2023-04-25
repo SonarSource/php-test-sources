@@ -21,17 +21,20 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 class TestServiceContainerWeakRefPass implements CompilerPassInterface
 {
+    /**
+     * @return void
+     */
     public function process(ContainerBuilder $container)
     {
         if (!$container->hasDefinition('test.private_services_locator')) {
             return;
         }
 
-        $privateServices = array();
+        $privateServices = [];
         $definitions = $container->getDefinitions();
 
         foreach ($definitions as $id => $definition) {
-            if ($id && '.' !== $id[0] && (!$definition->isPublic() || $definition->isPrivate()) && !$definition->getErrors() && !$definition->isAbstract()) {
+            if ($id && '.' !== $id[0] && (!$definition->isPublic() || $definition->isPrivate() || $definition->hasTag('container.private')) && !$definition->hasErrors() && !$definition->isAbstract()) {
                 $privateServices[$id] = new Reference($id, ContainerBuilder::IGNORE_ON_UNINITIALIZED_REFERENCE);
             }
         }
@@ -43,7 +46,7 @@ class TestServiceContainerWeakRefPass implements CompilerPassInterface
                 while (isset($aliases[$target = (string) $alias])) {
                     $alias = $aliases[$target];
                 }
-                if (isset($definitions[$target]) && !$definitions[$target]->getErrors() && !$definitions[$target]->isAbstract()) {
+                if (isset($definitions[$target]) && !$definitions[$target]->hasErrors() && !$definitions[$target]->isAbstract()) {
                     $privateServices[$id] = new Reference($target, ContainerBuilder::IGNORE_ON_UNINITIALIZED_REFERENCE);
                 }
             }

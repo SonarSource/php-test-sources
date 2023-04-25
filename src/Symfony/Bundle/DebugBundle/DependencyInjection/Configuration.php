@@ -21,15 +21,12 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  */
 class Configuration implements ConfigurationInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function getConfigTreeBuilder()
+    public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('debug');
 
-        $treeBuilder->getRootNode()
-            ->children()
+        $rootNode = $treeBuilder->getRootNode();
+        $rootNode->children()
                 ->integerNode('max_items')
                     ->info('Max number of displayed items past the first level, -1 means no limit')
                     ->min(-1)
@@ -50,7 +47,12 @@ class Configuration implements ConfigurationInterface
                     ->example('php://stderr, or tcp://%env(VAR_DUMPER_SERVER)% when using the "server:dump" command')
                     ->defaultNull()
                 ->end()
-            ->end()
+                ->enumNode('theme')
+                    ->info('Changes the color of the dump() output when rendered directly on the templating. "dark" (default) or "light"')
+                    ->example('dark')
+                    ->values(['dark', 'light'])
+                    ->defaultValue('dark')
+                ->end()
         ;
 
         return $treeBuilder;

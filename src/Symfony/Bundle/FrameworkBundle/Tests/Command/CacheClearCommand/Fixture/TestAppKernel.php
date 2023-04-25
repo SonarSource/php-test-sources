@@ -19,24 +19,24 @@ use Symfony\Component\HttpKernel\Kernel;
 
 class TestAppKernel extends Kernel
 {
-    public function registerBundles()
+    public function registerBundles(): iterable
     {
-        return array(
+        return [
             new FrameworkBundle(),
-        );
+        ];
     }
 
-    public function getProjectDir()
+    public function getProjectDir(): string
     {
         return __DIR__.'/test';
     }
 
-    public function registerContainerConfiguration(LoaderInterface $loader)
+    public function registerContainerConfiguration(LoaderInterface $loader): void
     {
         $loader->load(__DIR__.\DIRECTORY_SEPARATOR.'config.yml');
     }
 
-    protected function build(ContainerBuilder $container)
+    protected function build(ContainerBuilder $container): void
     {
         $container->register('logger', NullLogger::class);
     }

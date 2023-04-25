@@ -18,9 +18,9 @@ use Symfony\Component\Form\FormTypeInterface;
 
 class TestExtension implements FormExtensionInterface
 {
-    private $types = array();
+    private $types = [];
 
-    private $extensions = array();
+    private $extensions = [];
 
     private $guesser;
 
@@ -31,15 +31,15 @@ class TestExtension implements FormExtensionInterface
 
     public function addType(FormTypeInterface $type)
     {
-        $this->types[\get_class($type)] = $type;
+        $this->types[$type::class] = $type;
     }
 
-    public function getType($name)
+    public function getType($name): FormTypeInterface
     {
-        return isset($this->types[$name]) ? $this->types[$name] : null;
+        return $this->types[$name] ?? null;
     }
 
-    public function hasType($name)
+    public function hasType($name): bool
     {
         return isset($this->types[$name]);
     }
@@ -48,24 +48,24 @@ class TestExtension implements FormExtensionInterface
     {
         foreach ($extension::getExtendedTypes() as $type) {
             if (!isset($this->extensions[$type])) {
-                $this->extensions[$type] = array();
+                $this->extensions[$type] = [];
             }
 
             $this->extensions[$type][] = $extension;
         }
     }
 
-    public function getTypeExtensions($name)
+    public function getTypeExtensions($name): array
     {
-        return isset($this->extensions[$name]) ? $this->extensions[$name] : array();
+        return $this->extensions[$name] ?? [];
     }
 
-    public function hasTypeExtensions($name)
+    public function hasTypeExtensions($name): bool
     {
         return isset($this->extensions[$name]);
     }
 
-    public function getTypeGuesser()
+    public function getTypeGuesser(): ?FormTypeGuesserInterface
     {
         return $this->guesser;
     }

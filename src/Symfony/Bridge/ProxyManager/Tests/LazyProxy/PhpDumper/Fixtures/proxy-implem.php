@@ -1,22 +1,21 @@
 <?php
 
-class SunnyInterface_1eff735 implements \ProxyManager\Proxy\VirtualProxyInterface, \Symfony\Bridge\ProxyManager\Tests\LazyProxy\PhpDumper\DummyInterface, \Symfony\Bridge\ProxyManager\Tests\LazyProxy\PhpDumper\SunnyInterface
+class SunnyInterface_%s implements \ProxyManager\Proxy\VirtualProxyInterface, \Symfony\Bridge\ProxyManager\Tests\LazyProxy\PhpDumper\DummyInterface, \Symfony\Bridge\ProxyManager\Tests\LazyProxy\PhpDumper\SunnyInterface
 {
+%w  private $valueHolder%s = null;
 
-    private $valueHolder1eff735 = null;
+    private $initializer%s = null;
 
-    private $initializer1eff735 = null;
-
-    private static $publicProperties1eff735 = [
-        
+    private static $publicProperties%s = [
+%S
     ];
 
     public function dummy()
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, 'dummy', array(), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, 'dummy', array(), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        if ($this->valueHolder1eff735 === $returnValue = $this->valueHolder1eff735->dummy()) {
-            $returnValue = $this;
+        if ($this->valueHolder%s === $returnValue = $this->valueHolder%s->dummy()) {
+            return $this;
         }
 
         return $returnValue;
@@ -24,10 +23,10 @@ class SunnyInterface_1eff735 implements \ProxyManager\Proxy\VirtualProxyInterfac
 
     public function & dummyRef()
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, 'dummyRef', array(), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, 'dummyRef', array(), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        if ($this->valueHolder1eff735 === $returnValue = &$this->valueHolder1eff735->dummyRef()) {
-            $returnValue = $this;
+        if ($this->valueHolder%s === $returnValue = & $this->valueHolder%s->dummyRef()) {
+            return $this;
         }
 
         return $returnValue;
@@ -35,10 +34,10 @@ class SunnyInterface_1eff735 implements \ProxyManager\Proxy\VirtualProxyInterfac
 
     public function sunny()
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, 'sunny', array(), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, 'sunny', array(), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        if ($this->valueHolder1eff735 === $returnValue = $this->valueHolder1eff735->sunny()) {
-            $returnValue = $this;
+        if ($this->valueHolder%s === $returnValue = $this->valueHolder%s->sunny()) {
+            return $this;
         }
 
         return $returnValue;
@@ -49,9 +48,9 @@ class SunnyInterface_1eff735 implements \ProxyManager\Proxy\VirtualProxyInterfac
         static $reflection;
 
         $reflection = $reflection ?? new \ReflectionClass(__CLASS__);
-        $instance = $reflection->newInstanceWithoutConstructor();
+        $instance   = $reflection->newInstanceWithoutConstructor();
 
-        $instance->initializer1eff735 = $initializer;
+        $instance->initializer%s = $initializer;
 
         return $instance;
     }
@@ -60,106 +59,169 @@ class SunnyInterface_1eff735 implements \ProxyManager\Proxy\VirtualProxyInterfac
     {
         static $reflection;
 
-        if (! $this->valueHolder1eff735) {
+        if (! $this->valueHolder%s) {
             $reflection = $reflection ?? new \ReflectionClass(__CLASS__);
-            $this->valueHolder1eff735 = $reflection->newInstanceWithoutConstructor();
+            $this->valueHolder%s = $reflection->newInstanceWithoutConstructor();
         }
     }
 
     public function & __get($name)
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, '__get', ['name' => $name], $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, '__get', ['name' => $name], $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        if (isset(self::$publicProperties1eff735[$name])) {
-            return $this->valueHolder1eff735->$name;
+        if (isset(self::$publicProperties%s[$name])) {
+            return $this->valueHolder%s->$name;
         }
 
-        $targetObject = $this->valueHolder1eff735;
+        $realInstanceReflection = new \ReflectionClass(__CLASS__);
 
-        $backtrace = debug_backtrace(false);
-        trigger_error(
-            sprintf(
-                'Undefined property: %s::$%s in %s on line %s',
-                __CLASS__,
-                $name,
-                $backtrace[0]['file'],
-                $backtrace[0]['line']
-            ),
-            \E_USER_NOTICE
-        );
-        return $targetObject->$name;
+        if (! $realInstanceReflection->hasProperty($name)) {
+            $targetObject = $this->valueHolder%s;
+
+            $backtrace = debug_backtrace(false, 1);
+            trigger_error(
+                sprintf(
+                    'Undefined property: %%s::$%%s in %%s on line %%s',
+                    $realInstanceReflection->getName(),
+                    $name,
+                    $backtrace[0]['file'],
+                    $backtrace[0]['line']
+                ),
+                \E_USER_NOTICE
+            );
+            return $targetObject->$name;
+        }
+
+        $targetObject = $this->valueHolder%s;
+        $accessor = function & () use ($targetObject, $name) {
+            return $targetObject->$name;
+        };
+        $backtrace = debug_backtrace(true, 2);
+        $scopeObject = isset($backtrace[1]['object']) ? $backtrace[1]['object'] : new \ProxyManager\Stub\EmptyClassStub();
+        $accessor = $accessor->bindTo($scopeObject, get_class($scopeObject));
+        $returnValue = & $accessor();
+
+        return $returnValue;
     }
 
     public function __set($name, $value)
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, '__set', array('name' => $name, 'value' => $value), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, '__set', array('name' => $name, 'value' => $value), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        $targetObject = $this->valueHolder1eff735;
+        $realInstanceReflection = new \ReflectionClass(__CLASS__);
 
-        return $targetObject->$name = $value;
+        if (! $realInstanceReflection->hasProperty($name)) {
+            $targetObject = $this->valueHolder%s;
+
+            $targetObject->$name = $value;
+
+            return $targetObject->$name;
+        }
+
+        $targetObject = $this->valueHolder%s;
+        $accessor = function & () use ($targetObject, $name, $value) {
+            $targetObject->$name = $value;
+
+            return $targetObject->$name;
+        };
+        $backtrace = debug_backtrace(true, 2);
+        $scopeObject = isset($backtrace[1]['object']) ? $backtrace[1]['object'] : new \ProxyManager\Stub\EmptyClassStub();
+        $accessor = $accessor->bindTo($scopeObject, get_class($scopeObject));
+        $returnValue = & $accessor();
+
+        return $returnValue;
     }
 
     public function __isset($name)
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, '__isset', array('name' => $name), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, '__isset', array('name' => $name), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        $targetObject = $this->valueHolder1eff735;
+        $realInstanceReflection = new \ReflectionClass(__CLASS__);
 
-        return isset($targetObject->$name);
+        if (! $realInstanceReflection->hasProperty($name)) {
+            $targetObject = $this->valueHolder%s;
+
+            return isset($targetObject->$name);
+        }
+
+        $targetObject = $this->valueHolder%s;
+        $accessor = function () use ($targetObject, $name) {
+            return isset($targetObject->$name);
+        };
+        $backtrace = debug_backtrace(true, 2);
+        $scopeObject = isset($backtrace[1]['object']) ? $backtrace[1]['object'] : new \ProxyManager\Stub\EmptyClassStub();
+        $accessor = $accessor->bindTo($scopeObject, get_class($scopeObject));
+        $returnValue = $accessor();
+
+        return $returnValue;
     }
 
     public function __unset($name)
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, '__unset', array('name' => $name), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, '__unset', array('name' => $name), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        $targetObject = $this->valueHolder1eff735;
+        $realInstanceReflection = new \ReflectionClass(__CLASS__);
 
-        unset($targetObject->$name);
-return;
+        if (! $realInstanceReflection->hasProperty($name)) {
+            $targetObject = $this->valueHolder%s;
+
+            unset($targetObject->$name);
+
+            return;
+        }
+
+        $targetObject = $this->valueHolder%s;
+        $accessor = function () use ($targetObject, $name) {
+            unset($targetObject->$name);
+
+            return;
+        };
+        $backtrace = debug_backtrace(true, 2);
+        $scopeObject = isset($backtrace[1]['object']) ? $backtrace[1]['object'] : new \ProxyManager\Stub\EmptyClassStub();
+        $accessor = $accessor->bindTo($scopeObject, get_class($scopeObject));
+        $accessor();
     }
 
     public function __clone()
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, '__clone', array(), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, '__clone', array(), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        $this->valueHolder1eff735 = clone $this->valueHolder1eff735;
+        $this->valueHolder%s = clone $this->valueHolder%s;
     }
 
     public function __sleep()
     {
-        $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, '__sleep', array(), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, '__sleep', array(), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
 
-        return array('valueHolder1eff735');
+        return array('valueHolder%s');
     }
 
     public function __wakeup()
     {
     }
 
-    public function setProxyInitializer(\Closure $initializer = null)
+    public function setProxyInitializer(\Closure $initializer = null)%S
     {
-        $this->initializer1eff735 = $initializer;
+        $this->initializer%s = $initializer;
     }
 
-    public function getProxyInitializer()
+    public function getProxyInitializer()%S
     {
-        return $this->initializer1eff735;
+        return $this->initializer%s;
     }
 
     public function initializeProxy() : bool
     {
-        return $this->initializer1eff735 && ($this->initializer1eff735->__invoke($valueHolder1eff735, $this, 'initializeProxy', array(), $this->initializer1eff735) || 1) && $this->valueHolder1eff735 = $valueHolder1eff735;
+        return $this->initializer%s && ($this->initializer%s->__invoke($valueHolder%s, $this, 'initializeProxy', array(), $this->initializer%s) || 1) && $this->valueHolder%s = $valueHolder%s;
     }
 
     public function isProxyInitialized() : bool
     {
-        return null !== $this->valueHolder1eff735;
+        return null !== $this->valueHolder%s;
     }
 
-    public function getWrappedValueHolderValue()
+    public function getWrappedValueHolderValue()%S
     {
-        return $this->valueHolder1eff735;
-    }
-
-
+        return $this->valueHolder%s;
+    }%w
 }

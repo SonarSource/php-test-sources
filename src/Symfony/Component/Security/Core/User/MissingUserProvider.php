@@ -29,26 +29,22 @@ class MissingUserProvider implements UserProviderInterface
         throw new InvalidConfigurationException(sprintf('"%s" firewall requires a user provider but none was defined.', $firewall));
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function loadUserByUsername($username)
+    public function loadUserByUsername(string $username): UserInterface
     {
         throw new \BadMethodCallException();
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function refreshUser(UserInterface $user)
+    public function loadUserByIdentifier(string $identifier): UserInterface
     {
         throw new \BadMethodCallException();
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function supportsClass($class)
+    public function refreshUser(UserInterface $user): UserInterface
+    {
+        throw new \BadMethodCallException();
+    }
+
+    public function supportsClass(string $class): bool
     {
         throw new \BadMethodCallException();
     }

@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Twig\Node\DumpNode;
 use Twig\Compiler;
 use Twig\Environment;
+use Twig\Loader\LoaderInterface;
 use Twig\Node\Expression\NameExpression;
 use Twig\Node\Node;
 
@@ -24,12 +25,12 @@ class DumpNodeTest extends TestCase
     {
         $node = new DumpNode('bar', null, 7);
 
-        $env = new Environment($this->getMockBuilder('Twig\Loader\LoaderInterface')->getMock());
+        $env = new Environment($this->createMock(LoaderInterface::class));
         $compiler = new Compiler($env);
 
         $expected = <<<'EOTXT'
 if ($this->env->isDebug()) {
-    $barvars = array();
+    $barvars = [];
     foreach ($context as $barkey => $barval) {
         if (!$barval instanceof \Twig\Template) {
             $barvars[$barkey] = $barval;
@@ -48,12 +49,12 @@ EOTXT;
     {
         $node = new DumpNode('bar', null, 7);
 
-        $env = new Environment($this->getMockBuilder('Twig\Loader\LoaderInterface')->getMock());
+        $env = new Environment($this->createMock(LoaderInterface::class));
         $compiler = new Compiler($env);
 
         $expected = <<<'EOTXT'
     if ($this->env->isDebug()) {
-        $barvars = array();
+        $barvars = [];
         foreach ($context as $barkey => $barval) {
             if (!$barval instanceof \Twig\Template) {
                 $barvars[$barkey] = $barval;
@@ -70,12 +71,12 @@ EOTXT;
 
     public function testOneVar()
     {
-        $vars = new Node(array(
+        $vars = new Node([
             new NameExpression('foo', 7),
-        ));
+        ]);
         $node = new DumpNode('bar', $vars, 7);
 
-        $env = new Environment($this->getMockBuilder('Twig\Loader\LoaderInterface')->getMock());
+        $env = new Environment($this->createMock(LoaderInterface::class));
         $compiler = new Compiler($env);
 
         $expected = <<<'EOTXT'
@@ -93,22 +94,22 @@ EOTXT;
 
     public function testMultiVars()
     {
-        $vars = new Node(array(
+        $vars = new Node([
             new NameExpression('foo', 7),
             new NameExpression('bar', 7),
-        ));
+        ]);
         $node = new DumpNode('bar', $vars, 7);
 
-        $env = new Environment($this->getMockBuilder('Twig\Loader\LoaderInterface')->getMock());
+        $env = new Environment($this->createMock(LoaderInterface::class));
         $compiler = new Compiler($env);
 
         $expected = <<<'EOTXT'
 if ($this->env->isDebug()) {
     // line 7
-    \Symfony\Component\VarDumper\VarDumper::dump(array(
+    \Symfony\Component\VarDumper\VarDumper::dump([
         "foo" => %foo%,
         "bar" => %bar%,
-    ));
+    ]);
 }
 
 EOTXT;

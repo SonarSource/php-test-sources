@@ -12,6 +12,7 @@
 namespace Symfony\Bundle\FrameworkBundle\Tests\DependencyInjection\Compiler;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface;
 use Symfony\Bundle\FrameworkBundle\DependencyInjection\Compiler\TestServiceContainerRealRefPass;
 use Symfony\Bundle\FrameworkBundle\DependencyInjection\Compiler\TestServiceContainerWeakRefPass;
 use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
@@ -27,7 +28,7 @@ class TestServiceContainerRefPassesTest extends TestCase
         $container = new ContainerBuilder();
         $container->register('test.private_services_locator', ServiceLocator::class)
             ->setPublic(true)
-            ->addArgument(0, array());
+            ->addArgument(0, []);
 
         $container->addCompilerPass(new TestServiceContainerWeakRefPass(), PassConfig::TYPE_BEFORE_REMOVING, -32);
         $container->addCompilerPass(new TestServiceContainerRealRefPass(), PassConfig::TYPE_AFTER_REMOVING);
@@ -36,7 +37,20 @@ class TestServiceContainerRefPassesTest extends TestCase
             ->setPublic(true)
             ->addArgument(new Reference('Test\private_used_shared_service'))
             ->addArgument(new Reference('Test\private_used_non_shared_service'))
+            ->addArgument(new Reference('Test\soon_private_service'))
         ;
+
+        $container->register('Test\soon_private_service')
+            ->setPublic(true)
+            ->addTag('container.private', ['package' => 'foo/bar', 'version' => '1.42'])
+        ;
+        $container->register('Test\soon_private_service_decorated')
+            ->setPublic(true)
+            ->addTag('container.private', ['package' => 'foo/bar', 'version' => '1.42'])
+        ;
+        $container->register('Test\soon_private_service_decorator')
+            ->setDecoratedService('Test\soon_private_service_decorated')
+            ->setArguments(['Test\soon_private_service_decorator.inner']);
 
         $container->register('Test\private_used_shared_service');
         $container->register('Test\private_unused_shared_service');
@@ -45,14 +59,18 @@ class TestServiceContainerRefPassesTest extends TestCase
 
         $container->compile();
 
-        $expected = array(
+        $expected = [
             'Test\private_used_shared_service' => new ServiceClosureArgument(new Reference('Test\private_used_shared_service')),
             'Test\private_used_non_shared_service' => new ServiceClosureArgument(new Reference('Test\private_used_non_shared_service')),
-            'Psr\Container\ContainerInterface' => new ServiceClosureArgument(new Reference('service_container')),
-            'Symfony\Component\DependencyInjection\ContainerInterface' => new ServiceClosureArgument(new Reference('service_container')),
-        );
-        $this->assertEquals($expected, $container->getDefinition('test.private_services_locator')->getArgument(0));
-        $this->assertSame($container, $container->get('test.private_services_locator')->get('Psr\Container\ContainerInterface'));
+            'Test\soon_private_service' => new ServiceClosureArgument(new Reference('.container.private.Test\soon_private_service')),
+            'Test\soon_private_service_decorator' => new ServiceClosureArgument(new Reference('.container.private.Test\soon_private_service_decorated')),
+            'Test\soon_private_service_decorated' => new ServiceClosureArgument(new Reference('.container.private.Test\soon_private_service_decorated')),
+        ];
+
+        $privateServices = $container->getDefinition('test.private_services_locator')->getArgument(0);
+        unset($privateServices[\Symfony\Component\DependencyInjection\ContainerInterface::class], $privateServices[ContainerInterface::class]);
+
+        $this->assertEquals($expected, $privateServices);
         $this->assertFalse($container->getDefinition('Test\private_used_non_shared_service')->isShared());
     }
 }

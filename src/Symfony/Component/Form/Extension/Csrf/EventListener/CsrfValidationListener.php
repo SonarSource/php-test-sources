@@ -18,7 +18,6 @@ use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\Util\ServerParams;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
-use Symfony\Component\Translation\TranslatorInterface as LegacyTranslatorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -26,38 +25,35 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 class CsrfValidationListener implements EventSubscriberInterface
 {
-    private $fieldName;
-    private $tokenManager;
-    private $tokenId;
-    private $errorMessage;
-    private $translator;
-    private $translationDomain;
-    private $serverParams;
+    private string $fieldName;
+    private CsrfTokenManagerInterface $tokenManager;
+    private string $tokenId;
+    private string $errorMessage;
+    private ?TranslatorInterface $translator;
+    private ?string $translationDomain;
+    private ServerParams $serverParams;
 
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
-        return array(
+        return [
             FormEvents::PRE_SUBMIT => 'preSubmit',
-        );
+        ];
     }
 
-    /**
-     * @param TranslatorInterface|null $translator
-     */
-    public function __construct(string $fieldName, CsrfTokenManagerInterface $tokenManager, string $tokenId, string $errorMessage, $translator = null, string $translationDomain = null, ServerParams $serverParams = null)
+    public function __construct(string $fieldName, CsrfTokenManagerInterface $tokenManager, string $tokenId, string $errorMessage, TranslatorInterface $translator = null, string $translationDomain = null, ServerParams $serverParams = null)
     {
-        if (null !== $translator && !$translator instanceof LegacyTranslatorInterface && !$translator instanceof TranslatorInterface) {
-            throw new \TypeError(sprintf('Argument 5 passed to %s() must be an instance of %s, %s given.', __METHOD__, TranslatorInterface::class, \is_object($translator) ? \get_class($translator) : \gettype($translator)));
-        }
         $this->fieldName = $fieldName;
         $this->tokenManager = $tokenManager;
         $this->tokenId = $tokenId;
         $this->errorMessage = $errorMessage;
         $this->translator = $translator;
         $this->translationDomain = $translationDomain;
-        $this->serverParams = $serverParams ?: new ServerParams();
+        $this->serverParams = $serverParams ?? new ServerParams();
     }
 
+    /**
+     * @return void
+     */
     public function preSubmit(FormEvent $event)
     {
         $form = $event->getForm();
@@ -66,15 +62,17 @@ class CsrfValidationListener implements EventSubscriberInterface
         if ($form->isRoot() && $form->getConfig()->getOption('compound') && !$postRequestSizeExceeded) {
             $data = $event->getData();
 
-            $csrfToken = new CsrfToken($this->tokenId, $data[$this->fieldName] ?? null);
-            if (!isset($data[$this->fieldName]) || !$this->tokenManager->isTokenValid($csrfToken)) {
+            $csrfValue = \is_string($data[$this->fieldName] ?? null) ? $data[$this->fieldName] : null;
+            $csrfToken = new CsrfToken($this->tokenId, $csrfValue);
+
+            if (null === $csrfValue || !$this->tokenManager->isTokenValid($csrfToken)) {
                 $errorMessage = $this->errorMessage;
 
                 if (null !== $this->translator) {
-                    $errorMessage = $this->translator->trans($errorMessage, array(), $this->translationDomain);
+                    $errorMessage = $this->translator->trans($errorMessage, [], $this->translationDomain);
                 }
 
-                $form->addError(new FormError($errorMessage, $errorMessage, array(), null, $csrfToken));
+                $form->addError(new FormError($errorMessage, $errorMessage, [], null, $csrfToken));
             }
 
             if (\is_array($data)) {

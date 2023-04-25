@@ -29,35 +29,35 @@ class TestHttpKernel extends HttpKernel implements ControllerResolverInterface, 
     protected $catch = false;
     protected $backendRequest;
 
-    public function __construct($body, $status, $headers, \Closure $customizer = null)
+    public function __construct($body, $status, $headers, \Closure $customizer = null, EventDispatcher $eventDispatcher = null)
     {
         $this->body = $body;
         $this->status = $status;
         $this->headers = $headers;
         $this->customizer = $customizer;
 
-        parent::__construct(new EventDispatcher(), $this, null, $this);
+        parent::__construct($eventDispatcher ?? new EventDispatcher(), $this, null, $this);
     }
 
     public function assert(\Closure $callback)
     {
-        $trustedConfig = array(Request::getTrustedProxies(), Request::getTrustedHeaderSet());
+        $trustedConfig = [Request::getTrustedProxies(), Request::getTrustedHeaderSet()];
 
-        list($trustedProxies, $trustedHeaderSet, $backendRequest) = $this->backendRequest;
+        [$trustedProxies, $trustedHeaderSet, $backendRequest] = $this->backendRequest;
         Request::setTrustedProxies($trustedProxies, $trustedHeaderSet);
 
         try {
             $callback($backendRequest);
         } finally {
-            list($trustedProxies, $trustedHeaderSet) = $trustedConfig;
+            [$trustedProxies, $trustedHeaderSet] = $trustedConfig;
             Request::setTrustedProxies($trustedProxies, $trustedHeaderSet);
         }
     }
 
-    public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = false)
+    public function handle(Request $request, $type = HttpKernelInterface::MAIN_REQUEST, $catch = false): Response
     {
         $this->catch = $catch;
-        $this->backendRequest = array(Request::getTrustedProxies(), Request::getTrustedHeaderSet(), $request);
+        $this->backendRequest = [Request::getTrustedProxies(), Request::getTrustedHeaderSet(), $request];
 
         return parent::handle($request, $type, $catch);
     }
@@ -67,14 +67,14 @@ class TestHttpKernel extends HttpKernel implements ControllerResolverInterface, 
         return $this->catch;
     }
 
-    public function getController(Request $request)
+    public function getController(Request $request): callable|false
     {
-        return array($this, 'callController');
+        return $this->callController(...);
     }
 
-    public function getArguments(Request $request, $controller)
+    public function getArguments(Request $request, callable $controller, \ReflectionFunctionAbstract $reflector = null): array
     {
-        return array($request);
+        return [$request];
     }
 
     public function callController(Request $request)

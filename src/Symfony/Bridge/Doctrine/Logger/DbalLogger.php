@@ -20,8 +20,8 @@ use Symfony\Component\Stopwatch\Stopwatch;
  */
 class DbalLogger implements SQLLogger
 {
-    const MAX_STRING_LENGTH = 32;
-    const BINARY_DATA_VALUE = '(binary value)';
+    public const MAX_STRING_LENGTH = 32;
+    public const BINARY_DATA_VALUE = '(binary value)';
 
     protected $logger;
     protected $stopwatch;
@@ -32,42 +32,31 @@ class DbalLogger implements SQLLogger
         $this->stopwatch = $stopwatch;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function startQuery($sql, array $params = null, array $types = null)
+    public function startQuery($sql, array $params = null, array $types = null): void
     {
-        if (null !== $this->stopwatch) {
-            $this->stopwatch->start('doctrine', 'doctrine');
-        }
+        $this->stopwatch?->start('doctrine', 'doctrine');
 
         if (null !== $this->logger) {
-            $this->log($sql, null === $params ? array() : $this->normalizeParams($params));
+            $this->log($sql, null === $params ? [] : $this->normalizeParams($params));
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function stopQuery()
+    public function stopQuery(): void
     {
-        if (null !== $this->stopwatch) {
-            $this->stopwatch->stop('doctrine');
-        }
+        $this->stopwatch?->stop('doctrine');
     }
 
     /**
      * Logs a message.
      *
-     * @param string $message A message to log
-     * @param array  $params  The context
+     * @return void
      */
-    protected function log($message, array $params)
+    protected function log(string $message, array $params)
     {
         $this->logger->debug($message, $params);
     }
 
-    private function normalizeParams(array $params)
+    private function normalizeParams(array $params): array
     {
         foreach ($params as $index => $param) {
             // normalize recursively

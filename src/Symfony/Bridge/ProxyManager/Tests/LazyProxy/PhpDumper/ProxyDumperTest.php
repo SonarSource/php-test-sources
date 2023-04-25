@@ -14,11 +14,14 @@ namespace Symfony\Bridge\ProxyManager\Tests\LazyProxy\PhpDumper;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\ProxyManager\LazyProxy\PhpDumper\ProxyDumper;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\LazyProxy\PhpDumper\DumperInterface;
 
 /**
  * Tests for {@see \Symfony\Bridge\ProxyManager\LazyProxy\PhpDumper\ProxyDumper}.
  *
  * @author Marco Pivetta <ocramius@gmail.com>
+ *
+ * @group legacy
  */
 class ProxyDumperTest extends TestCase
 {
@@ -27,10 +30,7 @@ class ProxyDumperTest extends TestCase
      */
     protected $dumper;
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->dumper = new ProxyDumper();
     }
@@ -72,10 +72,10 @@ class ProxyDumperTest extends TestCase
 
         $definition->setLazy(true);
 
-        $code = $this->dumper->getProxyFactoryCode($definition, 'foo', '$this->getFoo2Service(false)');
+        $code = $this->dumper->getProxyFactoryCode($definition, 'foo', '$container->getFoo2Service(false)');
 
         $this->assertStringMatchesFormat(
-            '%A$wrappedInstance = $this->getFoo2Service(false);%w$proxy->setProxyInitializer(null);%A',
+            '%A$wrappedInstance = $container->getFoo2Service(false);%w$proxy->setProxyInitializer(null);%A',
             $code
         );
     }
@@ -87,36 +87,25 @@ class ProxyDumperTest extends TestCase
     {
         $definition->setLazy(true);
 
-        $code = $this->dumper->getProxyFactoryCode($definition, 'foo', '$this->getFoo2Service(false)');
+        $code = $this->dumper->getProxyFactoryCode($definition, 'foo', '$container->getFoo2Service(false)');
 
-        $this->assertStringMatchesFormat('%A$this->'.$access.'[\'foo\'] = %A', $code);
+        $this->assertStringMatchesFormat('%A$container->'.$access.'[\'foo\'] = %A', $code);
     }
 
-    public function getPrivatePublicDefinitions()
+    public static function getPrivatePublicDefinitions()
     {
-        return array(
-            array(
+        return [
+            [
                 (new Definition(__CLASS__))
                     ->setPublic(false),
                 'privates',
-            ),
-            array(
+            ],
+            [
                 (new Definition(__CLASS__))
                     ->setPublic(true),
                 'services',
-            ),
-        );
-    }
-
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Missing factory code to construct the service "foo".
-     */
-    public function testGetProxyFactoryCodeWithoutCustomMethod()
-    {
-        $definition = new Definition(__CLASS__);
-        $definition->setLazy(true);
-        $this->dumper->getProxyFactoryCode($definition, 'foo');
+            ],
+        ];
     }
 
     public function testGetProxyFactoryCodeForInterface()
@@ -125,21 +114,24 @@ class ProxyDumperTest extends TestCase
         $definition = new Definition($class);
 
         $definition->setLazy(true);
-        $definition->addTag('proxy', array('interface' => DummyInterface::class));
-        $definition->addTag('proxy', array('interface' => SunnyInterface::class));
+        $definition->addTag('proxy', ['interface' => DummyInterface::class]);
+        $definition->addTag('proxy', ['interface' => SunnyInterface::class]);
 
         $implem = "<?php\n\n".$this->dumper->getProxyCode($definition);
-        $factory = $this->dumper->getProxyFactoryCode($definition, 'foo', '$this->getFooService(false)');
+        $factory = $this->dumper->getProxyFactoryCode($definition, 'foo', '$container->getFooService(false)');
         $factory = <<<EOPHP
 <?php
 
 return new class
 {
     public \$proxyClass;
-    private \$privates = array();
+    private \$privates = [];
 
     public function getFooService(\$lazyLoad = true)
     {
+        \$container = \$this;
+        \$containerRef = \\WeakReference::create(\$this);
+
 {$factory}        return new {$class}();
     }
 
@@ -154,12 +146,12 @@ return new class
 EOPHP;
 
         $implem = preg_replace('#\n    /\*\*.*?\*/#s', '', $implem);
-        $implem = str_replace('getWrappedValueHolderValue() : ?object', 'getWrappedValueHolderValue()', $implem);
         $implem = str_replace("array(\n        \n    );", "[\n        \n    ];", $implem);
-        $this->assertStringEqualsFile(__DIR__.'/Fixtures/proxy-implem.php', $implem);
+
+        $this->assertStringMatchesFormatFile(__DIR__.'/Fixtures/proxy-implem.php', $implem);
         $this->assertStringEqualsFile(__DIR__.'/Fixtures/proxy-factory.php', $factory);
 
-        require_once __DIR__.'/Fixtures/proxy-implem.php';
+        eval(preg_replace('/^<\?php/', '', $implem));
         $factory = require __DIR__.'/Fixtures/proxy-factory.php';
 
         $foo = $factory->getFooService();
@@ -174,17 +166,15 @@ EOPHP;
         $this->assertSame(123, @$foo->dynamicProp);
     }
 
-    /**
-     * @return array
-     */
-    public function getProxyCandidates()
+    public static function getProxyCandidates(): array
     {
-        $definitions = array(
-            array(new Definition(__CLASS__), true),
-            array(new Definition('stdClass'), true),
-            array(new Definition(uniqid('foo', true)), false),
-            array(new Definition(), false),
-        );
+        $definitions = [
+            [new Definition(__CLASS__), true],
+            [new Definition('stdClass'), true],
+            [new Definition(DumperInterface::class), true],
+            [new Definition(uniqid('foo', true)), false],
+            [new Definition(), false],
+        ];
 
         array_map(
             function ($definition) {
@@ -197,8 +187,11 @@ EOPHP;
     }
 }
 
+#[\AllowDynamicProperties]
 final class DummyClass implements DummyInterface, SunnyInterface
 {
+    private $ref;
+
     public function dummy()
     {
         return $this;

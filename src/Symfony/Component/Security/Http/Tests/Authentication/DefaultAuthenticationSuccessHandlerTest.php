@@ -12,7 +12,11 @@
 namespace Symfony\Component\Security\Http\Tests\Authentication;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Http\Authentication\DefaultAuthenticationSuccessHandler;
 use Symfony\Component\Security\Http\HttpUtils;
 
@@ -23,91 +27,136 @@ class DefaultAuthenticationSuccessHandlerTest extends TestCase
      */
     public function testRequestRedirections(Request $request, $options, $redirectedUrl)
     {
-        $urlGenerator = $this->getMockBuilder('Symfony\Component\Routing\Generator\UrlGeneratorInterface')->getMock();
-        $urlGenerator->expects($this->any())->method('generate')->will($this->returnValue('http://localhost/login'));
+        $urlGenerator = $this->createMock(UrlGeneratorInterface::class);
+        $urlGenerator->expects($this->any())->method('generate')->willReturn('http://localhost/login');
         $httpUtils = new HttpUtils($urlGenerator);
-        $token = $this->getMockBuilder('Symfony\Component\Security\Core\Authentication\Token\TokenInterface')->getMock();
+        $token = $this->createMock(TokenInterface::class);
         $handler = new DefaultAuthenticationSuccessHandler($httpUtils, $options);
         if ($request->hasSession()) {
-            $handler->setProviderKey('admin');
+            $handler->setFirewallName('admin');
         }
         $this->assertSame('http://localhost'.$redirectedUrl, $handler->onAuthenticationSuccess($request, $token)->getTargetUrl());
     }
 
-    public function getRequestRedirections()
+    public function testRequestRedirectionsWithTargetPathInSessions()
     {
-        $session = $this->getMockBuilder('Symfony\Component\HttpFoundation\Session\SessionInterface')->getMock();
-        $session->expects($this->once())->method('get')->with('_security.admin.target_path')->will($this->returnValue('/admin/dashboard'));
+        $session = $this->createMock(SessionInterface::class);
+        $session->expects($this->once())->method('get')->with('_security.admin.target_path')->willReturn('/admin/dashboard');
         $session->expects($this->once())->method('remove')->with('_security.admin.target_path');
         $requestWithSession = Request::create('/');
         $requestWithSession->setSession($session);
 
-        return array(
-            'default' => array(
+        $urlGenerator = $this->createMock(UrlGeneratorInterface::class);
+        $urlGenerator->expects($this->any())->method('generate')->willReturn('http://localhost/login');
+        $httpUtils = new HttpUtils($urlGenerator);
+        $token = $this->createMock(TokenInterface::class);
+        $handler = new DefaultAuthenticationSuccessHandler($httpUtils);
+        $handler->setFirewallName('admin');
+
+        $this->assertSame('http://localhost/admin/dashboard', $handler->onAuthenticationSuccess($requestWithSession, $token)->getTargetUrl());
+    }
+
+    public static function getRequestRedirections()
+    {
+        return [
+            'default' => [
                 Request::create('/'),
-                array(),
+                [],
                 '/',
-            ),
-            'forced target path' => array(
+            ],
+            'forced target path' => [
                 Request::create('/'),
-                array('always_use_default_target_path' => true, 'default_target_path' => '/dashboard'),
+                ['always_use_default_target_path' => true, 'default_target_path' => '/dashboard'],
                 '/dashboard',
-            ),
-            'target path as query string' => array(
+            ],
+            'target path as query string' => [
                 Request::create('/?_target_path=/dashboard'),
-                array(),
+                [],
                 '/dashboard',
-            ),
-            'target path name as query string is customized' => array(
+            ],
+            'target path name as query string is customized' => [
                 Request::create('/?_my_target_path=/dashboard'),
-                array('target_path_parameter' => '_my_target_path'),
+                ['target_path_parameter' => '_my_target_path'],
                 '/dashboard',
-            ),
-            'target path name as query string is customized and nested' => array(
+            ],
+            'target path name as query string is customized and nested' => [
                 Request::create('/?_target_path[value]=/dashboard'),
-                array('target_path_parameter' => '_target_path[value]'),
+                ['target_path_parameter' => '_target_path[value]'],
                 '/dashboard',
-            ),
-            'target path in session' => array(
-                $requestWithSession,
-                array(),
-                '/admin/dashboard',
-            ),
-            'target path as referer' => array(
-                Request::create('/', 'GET', array(), array(), array(), array('HTTP_REFERER' => 'http://localhost/dashboard')),
-                array('use_referer' => true),
+            ],
+            'target path as referer' => [
+                Request::create('/', 'GET', [], [], [], ['HTTP_REFERER' => 'http://localhost/dashboard']),
+                ['use_referer' => true],
                 '/dashboard',
-            ),
-            'target path as referer is ignored if not configured' => array(
-                Request::create('/', 'GET', array(), array(), array(), array('HTTP_REFERER' => 'http://localhost/dashboard')),
-                array(),
+            ],
+            'target path as referer is ignored if not configured' => [
+                Request::create('/', 'GET', [], [], [], ['HTTP_REFERER' => 'http://localhost/dashboard']),
+                [],
                 '/',
-            ),
-            'target path as referer when referer not set' => array(
+            ],
+            'target path as referer when referer not set' => [
                 Request::create('/'),
-                array('use_referer' => true),
+                ['use_referer' => true],
                 '/',
-            ),
-            'target path as referer when referer is ?' => array(
-                Request::create('/', 'GET', array(), array(), array(), array('HTTP_REFERER' => '?')),
-                array('use_referer' => true),
+            ],
+            'target path as referer when referer is ?' => [
+                Request::create('/', 'GET', [], [], [], ['HTTP_REFERER' => '?']),
+                ['use_referer' => true],
                 '/',
-            ),
-            'target path should be different than login URL' => array(
-                Request::create('/', 'GET', array(), array(), array(), array('HTTP_REFERER' => 'http://localhost/login')),
-                array('use_referer' => true, 'login_path' => '/login'),
+            ],
+            'target path should be different than login URL' => [
+                Request::create('/', 'GET', [], [], [], ['HTTP_REFERER' => 'http://localhost/login']),
+                ['use_referer' => true, 'login_path' => '/login'],
                 '/',
-            ),
-            'target path should be different than login URL (query string does not matter)' => array(
-                Request::create('/', 'GET', array(), array(), array(), array('HTTP_REFERER' => 'http://localhost/login?t=1&p=2')),
-                array('use_referer' => true, 'login_path' => '/login'),
+            ],
+            'target path should be different than login URL (query string does not matter)' => [
+                Request::create('/', 'GET', [], [], [], ['HTTP_REFERER' => 'http://localhost/login?t=1&p=2']),
+                ['use_referer' => true, 'login_path' => '/login'],
                 '/',
-            ),
-            'target path should be different than login URL (login_path as a route)' => array(
-                Request::create('/', 'GET', array(), array(), array(), array('HTTP_REFERER' => 'http://localhost/login?t=1&p=2')),
-                array('use_referer' => true, 'login_path' => 'login_route'),
+            ],
+            'target path should be different than login URL (login_path as a route)' => [
+                Request::create('/', 'GET', [], [], [], ['HTTP_REFERER' => 'http://localhost/login?t=1&p=2']),
+                ['use_referer' => true, 'login_path' => 'login_route'],
                 '/',
-            ),
-        );
+            ],
+        ];
+    }
+
+    public function testTargetPathFromRequestWithInvalidUrl()
+    {
+        $httpUtils = $this->createMock(HttpUtils::class);
+        $options = ['target_path_parameter' => '_my_target_path'];
+        $token = $this->createMock(TokenInterface::class);
+
+        $request = $this->createMock(Request::class);
+        $request->expects($this->once())
+            ->method('get')->with('_my_target_path')
+            ->willReturn('some_route_name');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('debug')
+            ->with('Ignoring query parameter "_my_target_path": not a valid URL.');
+
+        $handler = new DefaultAuthenticationSuccessHandler($httpUtils, $options, $logger);
+
+        $handler->onAuthenticationSuccess($request, $token);
+    }
+
+    public function testTargetPathWithAbsoluteUrlFromRequest()
+    {
+        $options = ['target_path_parameter' => '_my_target_path'];
+
+        $request = $this->createMock(Request::class);
+        $request->expects($this->once())
+            ->method('get')->with('_my_target_path')
+            ->willReturn('https://localhost/some-path');
+
+        $httpUtils = $this->createMock(HttpUtils::class);
+        $httpUtils->expects($this->once())
+            ->method('createRedirectResponse')->with($request, 'https://localhost/some-path');
+
+        $handler = new DefaultAuthenticationSuccessHandler($httpUtils, $options);
+        $handler->onAuthenticationSuccess($request, $this->createMock(TokenInterface::class));
     }
 }

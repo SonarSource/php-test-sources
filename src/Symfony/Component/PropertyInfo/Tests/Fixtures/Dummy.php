@@ -31,7 +31,7 @@ class Dummy extends ParentDummy
     protected $baz;
 
     /**
-     * @var \DateTime
+     * @var \DateTimeImmutable
      */
     public $bal;
 
@@ -41,7 +41,7 @@ class Dummy extends ParentDummy
     public $parent;
 
     /**
-     * @var \DateTime[]
+     * @var \DateTimeImmutable[]
      * @Groups({"a", "b"})
      */
     public $collection;
@@ -84,14 +84,29 @@ class Dummy extends ParentDummy
     public $h;
 
     /**
-     * @var ?string|int
+     * @var string|int|null
      */
     public $i;
 
     /**
-     * @var ?\DateTime
+     * @var ?\DateTimeImmutable
      */
     public $j;
+
+    /**
+     * @var int[]|null
+     */
+    public $nullableCollectionOfNonNullableElements;
+
+    /**
+     * @var array
+     */
+    private $xTotals;
+
+    /**
+     * @var string
+     */
+    private $YT;
 
     /**
      * This should not be removed.
@@ -115,6 +130,31 @@ class Dummy extends ParentDummy
      */
     public $nestedIterators;
 
+    /**
+     * @var array<string,string>
+     */
+    public $arrayWithKeys;
+
+    /**
+     * @var array<string,array<integer,null|string>|null>
+     */
+    public $arrayWithKeysAndComplexValue;
+
+    /**
+     * @var array<string,mixed>
+     */
+    public $arrayOfMixed;
+
+    /**
+     * @var list<string>
+     */
+    public $listOfStrings;
+
+    /**
+     * @var parent
+     */
+    public $parentAnnotation;
+
     public static function getStatic()
     {
     }
@@ -126,7 +166,7 @@ class Dummy extends ParentDummy
     {
     }
 
-    public static function staticSetter(\DateTime $d)
+    public static function staticSetter(\DateTimeImmutable $d)
     {
     }
 
@@ -151,7 +191,7 @@ class Dummy extends ParentDummy
     /**
      * Date of Birth.
      *
-     * @return \DateTime
+     * @return \DateTimeImmutable
      */
     public function getDOB()
     {
@@ -179,6 +219,32 @@ class Dummy extends ParentDummy
      * @param parent $realParent
      */
     public function setRealParent(parent $realParent)
+    {
+    }
+
+    /**
+     * @return array
+     */
+    public function getXTotals()
+    {
+    }
+
+    /**
+     * @return string
+     */
+    public function getYT()
+    {
+    }
+
+    public function setDate(\DateTimeImmutable $date)
+    {
+    }
+
+    public function addDate(\DateTimeImmutable $date)
+    {
+    }
+
+    public function hasElement(string $element): bool
     {
     }
 }

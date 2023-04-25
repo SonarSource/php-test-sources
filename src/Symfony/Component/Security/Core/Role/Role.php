@@ -12,25 +12,19 @@
 namespace Symfony\Component\Security\Core\Role;
 
 /**
- * Role is a simple implementation representing a role identified by a string.
+ * Allows migrating session payloads from v4.
  *
- * @author Fabien Potencier <fabien@symfony.com>
+ * @internal
  */
 class Role
 {
     private $role;
 
-    public function __construct(string $role)
+    private function __construct()
     {
-        $this->role = $role;
     }
 
-    /**
-     * Returns a string representation of the role.
-     *
-     * @return string
-     */
-    public function getRole()
+    public function __toString(): string
     {
         return $this->role;
     }

@@ -12,38 +12,20 @@
 namespace Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory;
 
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
-use Symfony\Component\DependencyInjection\ChildDefinition;
-use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Reference;
 
 /**
  * FormLoginLdapFactory creates services for form login ldap authentication.
  *
  * @author Grégoire Pineau <lyrixx@lyrixx.info>
  * @author Charles Sarrazin <charles@sarraz.in>
+ *
+ * @internal
  */
 class FormLoginLdapFactory extends FormLoginFactory
 {
-    protected function createAuthProvider(ContainerBuilder $container, $id, $config, $userProviderId)
-    {
-        $provider = 'security.authentication.provider.ldap_bind.'.$id;
-        $definition = $container
-            ->setDefinition($provider, new ChildDefinition('security.authentication.provider.ldap_bind'))
-            ->replaceArgument(0, new Reference($userProviderId))
-            ->replaceArgument(1, new Reference('security.user_checker.'.$id))
-            ->replaceArgument(2, $id)
-            ->replaceArgument(3, new Reference($config['service']))
-            ->replaceArgument(4, $config['dn_string'])
-        ;
+    use LdapFactoryTrait;
 
-        if (!empty($config['query_string'])) {
-            $definition->addMethodCall('setQueryString', array($config['query_string']));
-        }
-
-        return $provider;
-    }
-
-    public function addConfiguration(NodeDefinition $node)
+    public function addConfiguration(NodeDefinition $node): void
     {
         parent::addConfiguration($node);
 
@@ -52,12 +34,9 @@ class FormLoginLdapFactory extends FormLoginFactory
                 ->scalarNode('service')->defaultValue('ldap')->end()
                 ->scalarNode('dn_string')->defaultValue('{username}')->end()
                 ->scalarNode('query_string')->end()
+                ->scalarNode('search_dn')->defaultValue('')->end()
+                ->scalarNode('search_password')->defaultValue('')->end()
             ->end()
         ;
-    }
-
-    public function getKey()
-    {
-        return 'form-login-ldap';
     }
 }

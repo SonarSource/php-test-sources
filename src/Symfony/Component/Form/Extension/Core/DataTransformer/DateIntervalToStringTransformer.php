@@ -19,10 +19,12 @@ use Symfony\Component\Form\Exception\UnexpectedTypeException;
  * Transforms between a date string and a DateInterval object.
  *
  * @author Steffen Roßkamp <steffen.rosskamp@gimmickmedia.de>
+ *
+ * @implements DataTransformerInterface<\DateInterval, string>
  */
 class DateIntervalToStringTransformer implements DataTransformerInterface
 {
-    private $format;
+    private string $format;
 
     /**
      * Transforms a \DateInterval instance to a string.
@@ -39,19 +41,17 @@ class DateIntervalToStringTransformer implements DataTransformerInterface
     /**
      * Transforms a DateInterval object into a date string with the configured format.
      *
-     * @param \DateInterval $value A DateInterval object
-     *
-     * @return string An ISO 8601 or relative date string like date interval presentation
+     * @param \DateInterval|null $value A DateInterval object
      *
      * @throws UnexpectedTypeException if the given value is not a \DateInterval instance
      */
-    public function transform($value)
+    public function transform(mixed $value): string
     {
         if (null === $value) {
             return '';
         }
         if (!$value instanceof \DateInterval) {
-            throw new UnexpectedTypeException($value, '\DateInterval');
+            throw new UnexpectedTypeException($value, \DateInterval::class);
         }
 
         return $value->format($this->format);
@@ -62,24 +62,22 @@ class DateIntervalToStringTransformer implements DataTransformerInterface
      *
      * @param string $value An ISO 8601 or date string like date interval presentation
      *
-     * @return \DateInterval An instance of \DateInterval
-     *
      * @throws UnexpectedTypeException       if the given value is not a string
      * @throws TransformationFailedException if the date interval could not be parsed
      */
-    public function reverseTransform($value)
+    public function reverseTransform(mixed $value): ?\DateInterval
     {
         if (null === $value) {
-            return;
+            return null;
         }
         if (!\is_string($value)) {
             throw new UnexpectedTypeException($value, 'string');
         }
         if ('' === $value) {
-            return;
+            return null;
         }
         if (!$this->isISO8601($value)) {
-            throw new TransformationFailedException('Non ISO 8601 date strings are not supported yet');
+            throw new TransformationFailedException('Non ISO 8601 date strings are not supported yet.');
         }
         $valuePattern = '/^'.preg_replace('/%([yYmMdDhHiIsSwW])(\w)/', '(?P<$1>\d+)$2', $this->format).'$/';
         if (!preg_match($valuePattern, $value)) {
@@ -94,7 +92,7 @@ class DateIntervalToStringTransformer implements DataTransformerInterface
         return $dateInterval;
     }
 
-    private function isISO8601($string)
+    private function isISO8601(string $string): bool
     {
         return preg_match('/^P(?=\w*(?:\d|%\w))(?:\d+Y|%[yY]Y)?(?:\d+M|%[mM]M)?(?:(?:\d+D|%[dD]D)|(?:\d+W|%[wW]W))?(?:T(?:\d+H|[hH]H)?(?:\d+M|[iI]M)?(?:\d+S|[sS]S)?)?$/', $string);
     }

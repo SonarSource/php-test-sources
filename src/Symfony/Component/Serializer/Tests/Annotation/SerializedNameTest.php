@@ -13,43 +13,24 @@ namespace Symfony\Component\Serializer\Tests\Annotation;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Serializer\Annotation\SerializedName;
+use Symfony\Component\Serializer\Exception\InvalidArgumentException;
 
 /**
  * @author Fabien Bourigault <bourigaultfabien@gmail.com>
  */
 class SerializedNameTest extends TestCase
 {
-    /**
-     * @expectedException \Symfony\Component\Serializer\Exception\InvalidArgumentException
-     * @expectedExceptionMessage Parameter of annotation "Symfony\Component\Serializer\Annotation\SerializedName" should be set.
-     */
-    public function testNotSetSerializedNameParameter()
+    public function testNotAStringSerializedNameParameter()
     {
-        new SerializedName(array());
-    }
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Parameter of annotation "Symfony\Component\Serializer\Annotation\SerializedName" must be a non-empty string.');
 
-    public function provideInvalidValues()
-    {
-        return array(
-            array(''),
-            array(0),
-        );
-    }
-
-    /**
-     * @dataProvider provideInvalidValues
-     *
-     * @expectedException \Symfony\Component\Serializer\Exception\InvalidArgumentException
-     * @expectedExceptionMessage Parameter of annotation "Symfony\Component\Serializer\Annotation\SerializedName" must be a non-empty string.
-     */
-    public function testNotAStringSerializedNameParameter($value)
-    {
-        new SerializedName(array('value' => $value));
+        new SerializedName('');
     }
 
     public function testSerializedNameParameters()
     {
-        $maxDepth = new SerializedName(array('value' => 'foo'));
+        $maxDepth = new SerializedName('foo');
         $this->assertEquals('foo', $maxDepth->getSerializedName());
     }
 }

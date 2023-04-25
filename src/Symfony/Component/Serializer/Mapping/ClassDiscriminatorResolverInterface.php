@@ -18,24 +18,9 @@ namespace Symfony\Component\Serializer\Mapping;
  */
 interface ClassDiscriminatorResolverInterface
 {
-    /**
-     * @param string $class
-     *
-     * @return ClassDiscriminatorMapping|null
-     */
     public function getMappingForClass(string $class): ?ClassDiscriminatorMapping;
 
-    /**
-     * @param object|string $object
-     *
-     * @return ClassDiscriminatorMapping|null
-     */
-    public function getMappingForMappedObject($object): ?ClassDiscriminatorMapping;
+    public function getMappingForMappedObject(object|string $object): ?ClassDiscriminatorMapping;
 
-    /**
-     * @param object|string $object
-     *
-     * @return string|null
-     */
-    public function getTypeForMappedObject($object): ?string;
+    public function getTypeForMappedObject(object|string $object): ?string;
 }

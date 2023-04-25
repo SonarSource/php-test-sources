@@ -11,14 +11,14 @@
 
 namespace Symfony\Bundle\SecurityBundle\Tests\Functional;
 
-class FormLoginTest extends WebTestCase
+class FormLoginTest extends AbstractWebTestCase
 {
     /**
-     * @dataProvider getConfigs
+     * @dataProvider provideClientOptions
      */
-    public function testFormLogin($config)
+    public function testFormLogin(array $options)
     {
-        $client = $this->createClient(array('test_case' => 'StandardFormLogin', 'root_config' => $config));
+        $client = $this->createClient($options);
 
         $form = $client->request('GET', '/login')->selectButton('login')->form();
         $form['_username'] = 'johannes';
@@ -27,17 +27,17 @@ class FormLoginTest extends WebTestCase
 
         $this->assertRedirect($client->getResponse(), '/profile');
 
-        $text = $client->followRedirect()->text();
-        $this->assertContains('Hello johannes!', $text);
-        $this->assertContains('You\'re browsing to path "/profile".', $text);
+        $text = $client->followRedirect()->text(null, true);
+        $this->assertStringContainsString('Hello johannes!', $text);
+        $this->assertStringContainsString('You\'re browsing to path "/profile".', $text);
     }
 
     /**
-     * @dataProvider getConfigs
+     * @dataProvider provideClientOptions
      */
-    public function testFormLogout($config)
+    public function testFormLogout(array $options)
     {
-        $client = $this->createClient(array('test_case' => 'StandardFormLogin', 'root_config' => $config));
+        $client = $this->createClient($options);
 
         $form = $client->request('GET', '/login')->selectButton('login')->form();
         $form['_username'] = 'johannes';
@@ -47,10 +47,10 @@ class FormLoginTest extends WebTestCase
         $this->assertRedirect($client->getResponse(), '/profile');
 
         $crawler = $client->followRedirect();
-        $text = $crawler->text();
+        $text = $crawler->text(null, true);
 
-        $this->assertContains('Hello johannes!', $text);
-        $this->assertContains('You\'re browsing to path "/profile".', $text);
+        $this->assertStringContainsString('Hello johannes!', $text);
+        $this->assertStringContainsString('You\'re browsing to path "/profile".', $text);
 
         $logoutLinks = $crawler->selectLink('Log out')->links();
         $this->assertCount(6, $logoutLinks);
@@ -66,11 +66,11 @@ class FormLoginTest extends WebTestCase
     }
 
     /**
-     * @dataProvider getConfigs
+     * @dataProvider provideClientOptions
      */
-    public function testFormLoginWithCustomTargetPath($config)
+    public function testFormLoginWithCustomTargetPath(array $options)
     {
-        $client = $this->createClient(array('test_case' => 'StandardFormLogin', 'root_config' => $config));
+        $client = $this->createClient($options);
 
         $form = $client->request('GET', '/login')->selectButton('login')->form();
         $form['_username'] = 'johannes';
@@ -80,17 +80,17 @@ class FormLoginTest extends WebTestCase
 
         $this->assertRedirect($client->getResponse(), '/foo');
 
-        $text = $client->followRedirect()->text();
-        $this->assertContains('Hello johannes!', $text);
-        $this->assertContains('You\'re browsing to path "/foo".', $text);
+        $text = $client->followRedirect()->text(null, true);
+        $this->assertStringContainsString('Hello johannes!', $text);
+        $this->assertStringContainsString('You\'re browsing to path "/foo".', $text);
     }
 
     /**
-     * @dataProvider getConfigs
+     * @dataProvider provideClientOptions
      */
-    public function testFormLoginRedirectsToProtectedResourceAfterLogin($config)
+    public function testFormLoginRedirectsToProtectedResourceAfterLogin(array $options)
     {
-        $client = $this->createClient(array('test_case' => 'StandardFormLogin', 'root_config' => $config));
+        $client = $this->createClient($options);
 
         $client->request('GET', '/protected_resource');
         $this->assertRedirect($client->getResponse(), '/login');
@@ -101,16 +101,55 @@ class FormLoginTest extends WebTestCase
         $client->submit($form);
         $this->assertRedirect($client->getResponse(), '/protected_resource');
 
-        $text = $client->followRedirect()->text();
-        $this->assertContains('Hello johannes!', $text);
-        $this->assertContains('You\'re browsing to path "/protected_resource".', $text);
+        $text = $client->followRedirect()->text(null, true);
+        $this->assertStringContainsString('Hello johannes!', $text);
+        $this->assertStringContainsString('You\'re browsing to path "/protected_resource".', $text);
     }
 
-    public function getConfigs()
+    /**
+     * @group time-sensitive
+     */
+    public function testLoginThrottling()
     {
-        return array(
-            array('config.yml'),
-            array('routes_as_path.yml'),
-        );
+        $client = $this->createClient(['test_case' => 'StandardFormLogin', 'root_config' => 'login_throttling.yml']);
+
+        $attempts = [
+            ['johannes', 'wrong'],
+            ['johannes', 'also_wrong'],
+            ['wrong', 'wrong'],
+            ['johannes', 'wrong_again'],
+        ];
+        foreach ($attempts as $i => $attempt) {
+            $form = $client->request('GET', '/login')->selectButton('login')->form();
+            $form['_username'] = $attempt[0];
+            $form['_password'] = $attempt[1];
+            $client->submit($form);
+
+            $text = $client->followRedirect()->text(null, true);
+            switch ($i) {
+                case 0: // First attempt : Invalid credentials (OK)
+                    $this->assertStringContainsString('Invalid credentials', $text, 'Invalid response on 1st attempt');
+
+                    break;
+                case 1: // Second attempt : login throttling !
+                    $this->assertStringContainsString('Too many failed login attempts, please try again', $text, 'Invalid response on 2nd attempt');
+
+                    break;
+                case 2: // Third attempt with unexisting username
+                    $this->assertStringContainsString('Invalid credentials.', $text, 'Invalid response on 3rd attempt');
+
+                    break;
+                case 3: // Fourth attempt : still login throttling !
+                    $this->assertStringContainsString('Too many failed login attempts, please try again', $text, 'Invalid response on 4th attempt');
+
+                    break;
+            }
+        }
+    }
+
+    public static function provideClientOptions()
+    {
+        yield [['test_case' => 'StandardFormLogin', 'root_config' => 'base_config.yml']];
+        yield [['test_case' => 'StandardFormLogin', 'root_config' => 'routes_as_path.yml']];
     }
 }

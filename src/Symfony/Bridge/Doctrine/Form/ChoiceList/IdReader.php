@@ -11,8 +11,8 @@
 
 namespace Symfony\Bridge\Doctrine\Form\ChoiceList;
 
-use Doctrine\Common\Persistence\Mapping\ClassMetadata;
-use Doctrine\Common\Persistence\ObjectManager;
+use Doctrine\Persistence\Mapping\ClassMetadata;
+use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\Form\Exception\RuntimeException;
 
 /**
@@ -24,16 +24,12 @@ use Symfony\Component\Form\Exception\RuntimeException;
  */
 class IdReader
 {
-    private $om;
-    private $classMetadata;
-    private $singleId;
-    private $intId;
-    private $idField;
-
-    /**
-     * @var IdReader|null
-     */
-    private $associationIdReader;
+    private ObjectManager $om;
+    private ClassMetadata $classMetadata;
+    private bool $singleId;
+    private bool $intId;
+    private string $idField;
+    private ?self $associationIdReader = null;
 
     public function __construct(ObjectManager $om, ClassMetadata $classMetadata)
     {
@@ -43,7 +39,7 @@ class IdReader
         $this->om = $om;
         $this->classMetadata = $classMetadata;
         $this->singleId = 1 === \count($ids);
-        $this->intId = $this->singleId && \in_array($idType, array('integer', 'smallint', 'bigint'));
+        $this->intId = $this->singleId && \in_array($idType, ['integer', 'smallint', 'bigint']);
         $this->idField = current($ids);
 
         // single field association are resolved, since the schema column could be an int
@@ -59,9 +55,6 @@ class IdReader
 
     /**
      * Returns whether the class has a single-column ID.
-     *
-     * @return bool returns `true` if the class has a single-column ID and
-     *              `false` otherwise
      */
     public function isSingleId(): bool
     {
@@ -70,9 +63,6 @@ class IdReader
 
     /**
      * Returns whether the class has a single-column integer ID.
-     *
-     * @return bool returns `true` if the class has a single-column integer ID
-     *              and `false` otherwise
      */
     public function isIntId(): bool
     {
@@ -83,19 +73,15 @@ class IdReader
      * Returns the ID value for an object.
      *
      * This method assumes that the object has a single-column ID.
-     *
-     * @param object $object The object
-     *
-     * @return mixed The ID value
      */
-    public function getIdValue($object)
+    public function getIdValue(object $object = null): string
     {
         if (!$object) {
-            return;
+            return '';
         }
 
         if (!$this->om->contains($object)) {
-            throw new RuntimeException(sprintf('Entity of type "%s" passed to the choice field must be managed. Maybe you forget to persist it in the entity manager?', \get_class($object)));
+            throw new RuntimeException(sprintf('Entity of type "%s" passed to the choice field must be managed. Maybe you forget to persist it in the entity manager?', get_debug_type($object)));
         }
 
         $this->om->initializeObject($object);
@@ -106,15 +92,13 @@ class IdReader
             $idValue = $this->associationIdReader->getIdValue($idValue);
         }
 
-        return $idValue;
+        return (string) $idValue;
     }
 
     /**
      * Returns the name of the ID field.
      *
      * This method assumes that the object has a single-column ID.
-     *
-     * @return string The name of the ID field
      */
     public function getIdField(): string
     {

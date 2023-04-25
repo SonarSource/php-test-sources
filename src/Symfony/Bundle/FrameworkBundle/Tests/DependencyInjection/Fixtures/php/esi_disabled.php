@@ -1,7 +1,8 @@
 <?php
 
-$container->loadFromExtension('framework', array(
-    'esi' => array(
+$container->loadFromExtension('framework', [
+    'http_method_override' => false,
+    'esi' => [
         'enabled' => false,
-    ),
-));
+    ],
+]);

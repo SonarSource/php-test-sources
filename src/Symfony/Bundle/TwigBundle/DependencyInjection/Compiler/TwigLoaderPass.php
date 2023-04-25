@@ -23,38 +23,41 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 class TwigLoaderPass implements CompilerPassInterface
 {
+    /**
+     * @return void
+     */
     public function process(ContainerBuilder $container)
     {
         if (false === $container->hasDefinition('twig')) {
             return;
         }
 
-        $prioritizedLoaders = array();
+        $prioritizedLoaders = [];
         $found = 0;
 
         foreach ($container->findTaggedServiceIds('twig.loader', true) as $id => $attributes) {
-            $priority = isset($attributes[0]['priority']) ? $attributes[0]['priority'] : 0;
+            $priority = $attributes[0]['priority'] ?? 0;
             $prioritizedLoaders[$priority][] = $id;
             ++$found;
         }
 
         if (!$found) {
-            throw new LogicException('No twig loaders found. You need to tag at least one loader with "twig.loader"');
+            throw new LogicException('No twig loaders found. You need to tag at least one loader with "twig.loader".');
         }
 
         if (1 === $found) {
-            $container->setAlias('twig.loader', $id)->setPrivate(true);
+            $container->setAlias('twig.loader', $id);
         } else {
             $chainLoader = $container->getDefinition('twig.loader.chain');
             krsort($prioritizedLoaders);
 
             foreach ($prioritizedLoaders as $loaders) {
                 foreach ($loaders as $loader) {
-                    $chainLoader->addMethodCall('addLoader', array(new Reference($loader)));
+                    $chainLoader->addMethodCall('addLoader', [new Reference($loader)]);
                 }
             }
 
-            $container->setAlias('twig.loader', 'twig.loader.chain')->setPrivate(true);
+            $container->setAlias('twig.loader', 'twig.loader.chain');
         }
     }
 }

@@ -18,15 +18,12 @@ use Twig\TwigFunction;
  * @author Christian Flothmann <christian.flothmann@sensiolabs.de>
  * @author Titouan Galopin <galopintitouan@gmail.com>
  */
-class CsrfExtension extends AbstractExtension
+final class CsrfExtension extends AbstractExtension
 {
-    /**
-     * {@inheritdoc}
-     */
     public function getFunctions(): array
     {
-        return array(
-            new TwigFunction('csrf_token', array(CsrfRuntime::class, 'getCsrfToken')),
-        );
+        return [
+            new TwigFunction('csrf_token', [CsrfRuntime::class, 'getCsrfToken']),
+        ];
     }
 }

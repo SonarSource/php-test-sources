@@ -14,6 +14,7 @@
             <xsd:element name="form-theme" type="xsd:string" minOccurs="0" maxOccurs="unbounded" />
             <xsd:element name="global" type="global" minOccurs="0" maxOccurs="unbounded" />
             <xsd:element name="path" type="path" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:element name="mailer" type="mailer" minOccurs="0" maxOccurs="1" />
         </xsd:sequence>
 
         <xsd:attribute name="auto-reload" type="xsd:string" />
@@ -25,7 +26,6 @@
         <xsd:attribute name="charset" type="xsd:string" />
         <xsd:attribute name="debug" type="xsd:string" />
         <xsd:attribute name="strict-variables" type="xsd:string" />
-        <xsd:attribute name="exception-controller" type="xsd:string" />
         <xsd:attribute name="default-path" type="xsd:string" />
     </xsd:complexType>
 
@@ -56,4 +56,8 @@
             <xsd:enumeration value="service" />
         </xsd:restriction>
     </xsd:simpleType>
+
+    <xsd:complexType name="mailer">
+        <xsd:attribute name="html-to-text-converter" type="xsd:string" />
+    </xsd:complexType>
 </xsd:schema>

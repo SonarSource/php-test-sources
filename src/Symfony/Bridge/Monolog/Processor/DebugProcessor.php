@@ -12,6 +12,7 @@
 namespace Symfony\Bridge\Monolog\Processor;
 
 use Monolog\Logger;
+use Monolog\LogRecord;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Log\DebugLoggerInterface;
@@ -19,30 +20,41 @@ use Symfony\Contracts\Service\ResetInterface;
 
 class DebugProcessor implements DebugLoggerInterface, ResetInterface
 {
-    private $records = array();
-    private $errorCount = array();
-    private $requestStack;
+    use CompatibilityProcessor;
+
+    private array $records = [];
+    private array $errorCount = [];
+    private ?RequestStack $requestStack;
 
     public function __construct(RequestStack $requestStack = null)
     {
         $this->requestStack = $requestStack;
     }
 
-    public function __invoke(array $record)
+    private function doInvoke(array|LogRecord $record): array|LogRecord
     {
-        $hash = $this->requestStack && ($request = $this->requestStack->getCurrentRequest()) ? spl_object_hash($request) : '';
+        $key = $this->requestStack && ($request = $this->requestStack->getCurrentRequest()) ? spl_object_id($request) : '';
 
-        $this->records[$hash][] = array(
-            'timestamp' => $record['datetime']->getTimestamp(),
+        $timestampRfc3339 = false;
+        if ($record['datetime'] instanceof \DateTimeInterface) {
+            $timestamp = $record['datetime']->getTimestamp();
+            $timestampRfc3339 = $record['datetime']->format(\DateTimeInterface::RFC3339_EXTENDED);
+        } elseif (false !== $timestamp = strtotime($record['datetime'])) {
+            $timestampRfc3339 = (new \DateTimeImmutable($record['datetime']))->format(\DateTimeInterface::RFC3339_EXTENDED);
+        }
+
+        $this->records[$key][] = [
+            'timestamp' => $timestamp,
+            'timestamp_rfc3339' => $timestampRfc3339,
             'message' => $record['message'],
             'priority' => $record['level'],
             'priorityName' => $record['level_name'],
             'context' => $record['context'],
-            'channel' => isset($record['channel']) ? $record['channel'] : '',
-        );
+            'channel' => $record['channel'] ?? '',
+        ];
 
-        if (!isset($this->errorCount[$hash])) {
-            $this->errorCount[$hash] = 0;
+        if (!isset($this->errorCount[$key])) {
+            $this->errorCount[$key] = 0;
         }
 
         switch ($record['level']) {
@@ -50,63 +62,45 @@ class DebugProcessor implements DebugLoggerInterface, ResetInterface
             case Logger::CRITICAL:
             case Logger::ALERT:
             case Logger::EMERGENCY:
-                ++$this->errorCount[$hash];
+                ++$this->errorCount[$key];
         }
 
         return $record;
     }
 
-    /**
-     * {@inheritdoc}
-     *
-     * @param Request|null $request
-     */
-    public function getLogs(/* Request $request = null */)
+    public function getLogs(Request $request = null): array
     {
-        if (\func_num_args() < 1 && __CLASS__ !== \get_class($this) && __CLASS__ !== (new \ReflectionMethod($this, __FUNCTION__))->getDeclaringClass()->getName() && !$this instanceof \PHPUnit\Framework\MockObject\MockObject && !$this instanceof \Prophecy\Prophecy\ProphecySubjectInterface) {
-            @trigger_error(sprintf('The "%s()" method will have a new "Request $request = null" argument in version 5.0, not defining it is deprecated since Symfony 4.2.', __METHOD__), E_USER_DEPRECATED);
-        }
-
-        if (1 <= \func_num_args() && null !== ($request = \func_get_arg(0)) && isset($this->records[$hash = spl_object_hash($request)])) {
-            return $this->records[$hash];
+        if (null !== $request) {
+            return $this->records[spl_object_id($request)] ?? [];
         }
 
         if (0 === \count($this->records)) {
-            return array();
+            return [];
         }
 
         return array_merge(...array_values($this->records));
     }
 
-    /**
-     * {@inheritdoc}
-     *
-     * @param Request|null $request
-     */
-    public function countErrors(/* Request $request = null */)
+    public function countErrors(Request $request = null): int
     {
-        if (\func_num_args() < 1 && __CLASS__ !== \get_class($this) && __CLASS__ !== (new \ReflectionMethod($this, __FUNCTION__))->getDeclaringClass()->getName() && !$this instanceof \PHPUnit\Framework\MockObject\MockObject && !$this instanceof \Prophecy\Prophecy\ProphecySubjectInterface) {
-            @trigger_error(sprintf('The "%s()" method will have a new "Request $request = null" argument in version 5.0, not defining it is deprecated since Symfony 4.2.', __METHOD__), E_USER_DEPRECATED);
-        }
-
-        if (1 <= \func_num_args() && null !== ($request = \func_get_arg(0)) && isset($this->errorCount[$hash = spl_object_hash($request)])) {
-            return $this->errorCount[$hash];
+        if (null !== $request) {
+            return $this->errorCount[spl_object_id($request)] ?? 0;
         }
 
         return array_sum($this->errorCount);
     }
 
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function clear()
     {
-        $this->records = array();
-        $this->errorCount = array();
+        $this->records = [];
+        $this->errorCount = [];
     }
 
     /**
-     * {@inheritdoc}
+     * @return void
      */
     public function reset()
     {

@@ -20,27 +20,20 @@ use Twig\TwigFunction;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class HttpKernelExtension extends AbstractExtension
+final class HttpKernelExtension extends AbstractExtension
 {
-    public function getFunctions()
+    public function getFunctions(): array
     {
-        return array(
-            new TwigFunction('render', array(HttpKernelRuntime::class, 'renderFragment'), array('is_safe' => array('html'))),
-            new TwigFunction('render_*', array(HttpKernelRuntime::class, 'renderFragmentStrategy'), array('is_safe' => array('html'))),
+        return [
+            new TwigFunction('render', [HttpKernelRuntime::class, 'renderFragment'], ['is_safe' => ['html']]),
+            new TwigFunction('render_*', [HttpKernelRuntime::class, 'renderFragmentStrategy'], ['is_safe' => ['html']]),
+            new TwigFunction('fragment_uri', [HttpKernelRuntime::class, 'generateFragmentUri']),
             new TwigFunction('controller', static::class.'::controller'),
-        );
+        ];
     }
 
-    public static function controller($controller, $attributes = array(), $query = array())
+    public static function controller(string $controller, array $attributes = [], array $query = []): ControllerReference
     {
         return new ControllerReference($controller, $attributes, $query);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getName()
-    {
-        return 'http_kernel';
     }
 }

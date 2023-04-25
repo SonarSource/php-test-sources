@@ -12,14 +12,18 @@
 namespace Symfony\Component\HttpKernel\Tests\Controller;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\HttpKernel\Attribute\ValueResolver;
 use Symfony\Component\HttpKernel\Controller\ArgumentResolver;
+use Symfony\Component\HttpKernel\Controller\ArgumentResolver\DefaultValueResolver;
 use Symfony\Component\HttpKernel\Controller\ArgumentResolver\RequestAttributeValueResolver;
 use Symfony\Component\HttpKernel\Controller\ArgumentValueResolverInterface;
 use Symfony\Component\HttpKernel\ControllerMetadata\ArgumentMetadataFactory;
+use Symfony\Component\HttpKernel\Exception\ResolverNotFoundException;
 use Symfony\Component\HttpKernel\Tests\Fixtures\Controller\ExtendingRequest;
 use Symfony\Component\HttpKernel\Tests\Fixtures\Controller\ExtendingSession;
 use Symfony\Component\HttpKernel\Tests\Fixtures\Controller\NullableController;
@@ -27,46 +31,45 @@ use Symfony\Component\HttpKernel\Tests\Fixtures\Controller\VariadicController;
 
 class ArgumentResolverTest extends TestCase
 {
-    /** @var ArgumentResolver */
-    private static $resolver;
-
-    public static function setUpBeforeClass()
+    public static function getResolver(array $chainableResolvers = [], array $namedResolvers = null): ArgumentResolver
     {
-        $factory = new ArgumentMetadataFactory();
+        if (null !== $namedResolvers) {
+            $namedResolvers = new ServiceLocator(array_map(fn ($resolver) => fn () => $resolver, $namedResolvers));
+        }
 
-        self::$resolver = new ArgumentResolver($factory);
+        return new ArgumentResolver(new ArgumentMetadataFactory(), $chainableResolvers, $namedResolvers);
     }
 
     public function testDefaultState()
     {
-        $this->assertEquals(self::$resolver, new ArgumentResolver());
-        $this->assertNotEquals(self::$resolver, new ArgumentResolver(null, array(new RequestAttributeValueResolver())));
+        $this->assertEquals(self::getResolver(), new ArgumentResolver());
+        $this->assertNotEquals(self::getResolver(), new ArgumentResolver(null, [new RequestAttributeValueResolver()]));
     }
 
     public function testGetArguments()
     {
         $request = Request::create('/');
         $request->attributes->set('foo', 'foo');
-        $controller = array(new self(), 'controllerWithFoo');
+        $controller = [new self(), 'controllerWithFoo'];
 
-        $this->assertEquals(array('foo'), self::$resolver->getArguments($request, $controller), '->getArguments() returns an array of arguments for the controller method');
+        $this->assertEquals(['foo'], self::getResolver()->getArguments($request, $controller), '->getArguments() returns an array of arguments for the controller method');
     }
 
     public function testGetArgumentsReturnsEmptyArrayWhenNoArguments()
     {
         $request = Request::create('/');
-        $controller = array(new self(), 'controllerWithoutArguments');
+        $controller = [new self(), 'controllerWithoutArguments'];
 
-        $this->assertEquals(array(), self::$resolver->getArguments($request, $controller), '->getArguments() returns an empty array if the method takes no arguments');
+        $this->assertEquals([], self::getResolver()->getArguments($request, $controller), '->getArguments() returns an empty array if the method takes no arguments');
     }
 
     public function testGetArgumentsUsesDefaultValue()
     {
         $request = Request::create('/');
         $request->attributes->set('foo', 'foo');
-        $controller = array(new self(), 'controllerWithFooAndDefaultBar');
+        $controller = [new self(), 'controllerWithFooAndDefaultBar'];
 
-        $this->assertEquals(array('foo', null), self::$resolver->getArguments($request, $controller), '->getArguments() uses default values if present');
+        $this->assertEquals(['foo', null], self::getResolver()->getArguments($request, $controller), '->getArguments() uses default values if present');
     }
 
     public function testGetArgumentsOverrideDefaultValueByRequestAttribute()
@@ -74,9 +77,9 @@ class ArgumentResolverTest extends TestCase
         $request = Request::create('/');
         $request->attributes->set('foo', 'foo');
         $request->attributes->set('bar', 'bar');
-        $controller = array(new self(), 'controllerWithFooAndDefaultBar');
+        $controller = [new self(), 'controllerWithFooAndDefaultBar'];
 
-        $this->assertEquals(array('foo', 'bar'), self::$resolver->getArguments($request, $controller), '->getArguments() overrides default values if provided in the request attributes');
+        $this->assertEquals(['foo', 'bar'], self::getResolver()->getArguments($request, $controller), '->getArguments() overrides default values if provided in the request attributes');
     }
 
     public function testGetArgumentsFromClosure()
@@ -85,7 +88,7 @@ class ArgumentResolverTest extends TestCase
         $request->attributes->set('foo', 'foo');
         $controller = function ($foo) {};
 
-        $this->assertEquals(array('foo'), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals(['foo'], self::getResolver()->getArguments($request, $controller));
     }
 
     public function testGetArgumentsUsesDefaultValueFromClosure()
@@ -94,7 +97,7 @@ class ArgumentResolverTest extends TestCase
         $request->attributes->set('foo', 'foo');
         $controller = function ($foo, $bar = 'bar') {};
 
-        $this->assertEquals(array('foo', 'bar'), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals(['foo', 'bar'], self::getResolver()->getArguments($request, $controller));
     }
 
     public function testGetArgumentsFromInvokableObject()
@@ -103,12 +106,12 @@ class ArgumentResolverTest extends TestCase
         $request->attributes->set('foo', 'foo');
         $controller = new self();
 
-        $this->assertEquals(array('foo', null), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals(['foo', null], self::getResolver()->getArguments($request, $controller));
 
         // Test default bar overridden by request attribute
         $request->attributes->set('bar', 'bar');
 
-        $this->assertEquals(array('foo', 'bar'), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals(['foo', 'bar'], self::getResolver()->getArguments($request, $controller));
     }
 
     public function testGetArgumentsFromFunctionName()
@@ -118,7 +121,7 @@ class ArgumentResolverTest extends TestCase
         $request->attributes->set('foobar', 'foobar');
         $controller = __NAMESPACE__.'\controller_function';
 
-        $this->assertEquals(array('foo', 'foobar'), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals(['foo', 'foobar'], self::getResolver()->getArguments($request, $controller));
     }
 
     public function testGetArgumentsFailsOnUnresolvedValue()
@@ -126,83 +129,79 @@ class ArgumentResolverTest extends TestCase
         $request = Request::create('/');
         $request->attributes->set('foo', 'foo');
         $request->attributes->set('foobar', 'foobar');
-        $controller = array(new self(), 'controllerWithFooBarFoobar');
+        $controller = [new self(), 'controllerWithFooBarFoobar'];
 
         try {
-            self::$resolver->getArguments($request, $controller);
+            self::getResolver()->getArguments($request, $controller);
             $this->fail('->getArguments() throws a \RuntimeException exception if it cannot determine the argument value');
         } catch (\Exception $e) {
-            $this->assertInstanceOf('\RuntimeException', $e, '->getArguments() throws a \RuntimeException exception if it cannot determine the argument value');
+            $this->assertInstanceOf(\RuntimeException::class, $e, '->getArguments() throws a \RuntimeException exception if it cannot determine the argument value');
         }
     }
 
     public function testGetArgumentsInjectsRequest()
     {
         $request = Request::create('/');
-        $controller = array(new self(), 'controllerWithRequest');
+        $controller = [new self(), 'controllerWithRequest'];
 
-        $this->assertEquals(array($request), self::$resolver->getArguments($request, $controller), '->getArguments() injects the request');
+        $this->assertEquals([$request], self::getResolver()->getArguments($request, $controller), '->getArguments() injects the request');
     }
 
     public function testGetArgumentsInjectsExtendingRequest()
     {
         $request = ExtendingRequest::create('/');
-        $controller = array(new self(), 'controllerWithExtendingRequest');
+        $controller = [new self(), 'controllerWithExtendingRequest'];
 
-        $this->assertEquals(array($request), self::$resolver->getArguments($request, $controller), '->getArguments() injects the request when extended');
+        $this->assertEquals([$request], self::getResolver()->getArguments($request, $controller), '->getArguments() injects the request when extended');
     }
 
     public function testGetVariadicArguments()
     {
         $request = Request::create('/');
         $request->attributes->set('foo', 'foo');
-        $request->attributes->set('bar', array('foo', 'bar'));
-        $controller = array(new VariadicController(), 'action');
+        $request->attributes->set('bar', ['foo', 'bar']);
+        $controller = [new VariadicController(), 'action'];
 
-        $this->assertEquals(array('foo', 'foo', 'bar'), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals(['foo', 'foo', 'bar'], self::getResolver()->getArguments($request, $controller));
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testGetVariadicArgumentsWithoutArrayInRequest()
     {
+        $this->expectException(\InvalidArgumentException::class);
         $request = Request::create('/');
         $request->attributes->set('foo', 'foo');
         $request->attributes->set('bar', 'foo');
-        $controller = array(new VariadicController(), 'action');
+        $controller = [new VariadicController(), 'action'];
 
-        self::$resolver->getArguments($request, $controller);
+        self::getResolver()->getArguments($request, $controller);
     }
 
     /**
-     * @expectedException \InvalidArgumentException
+     * @group legacy
      */
     public function testGetArgumentWithoutArray()
     {
-        $factory = new ArgumentMetadataFactory();
-        $valueResolver = $this->getMockBuilder(ArgumentValueResolverInterface::class)->getMock();
-        $resolver = new ArgumentResolver($factory, array($valueResolver));
+        $this->expectException(\InvalidArgumentException::class);
+        $valueResolver = $this->createMock(ArgumentValueResolverInterface::class);
+        $resolver = self::getResolver([$valueResolver]);
 
         $valueResolver->expects($this->any())->method('supports')->willReturn(true);
-        $valueResolver->expects($this->any())->method('resolve')->willReturn('foo');
+        $valueResolver->expects($this->any())->method('resolve')->willReturn([]);
 
         $request = Request::create('/');
         $request->attributes->set('foo', 'foo');
         $request->attributes->set('bar', 'foo');
-        $controller = array($this, 'controllerWithFooAndDefaultBar');
+        $controller = $this->controllerWithFooAndDefaultBar(...);
         $resolver->getArguments($request, $controller);
     }
 
-    /**
-     * @expectedException \RuntimeException
-     */
     public function testIfExceptionIsThrownWhenMissingAnArgument()
     {
+        $this->expectException(\RuntimeException::class);
         $request = Request::create('/');
-        $controller = array($this, 'controllerWithFoo');
+        $controller = $this->controllerWithFoo(...);
 
-        self::$resolver->getArguments($request, $controller);
+        self::getResolver()->getArguments($request, $controller);
     }
 
     public function testGetNullableArguments()
@@ -210,19 +209,19 @@ class ArgumentResolverTest extends TestCase
         $request = Request::create('/');
         $request->attributes->set('foo', 'foo');
         $request->attributes->set('bar', new \stdClass());
-        $request->attributes->set('mandatory', 'mandatory');
-        $controller = array(new NullableController(), 'action');
+        $request->attributes->set('last', 'last');
+        $controller = [new NullableController(), 'action'];
 
-        $this->assertEquals(array('foo', new \stdClass(), 'value', 'mandatory'), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals(['foo', new \stdClass(), 'value', 'last'], self::getResolver()->getArguments($request, $controller));
     }
 
     public function testGetNullableArgumentsWithDefaults()
     {
         $request = Request::create('/');
-        $request->attributes->set('mandatory', 'mandatory');
-        $controller = array(new NullableController(), 'action');
+        $request->attributes->set('last', 'last');
+        $controller = [new NullableController(), 'action'];
 
-        $this->assertEquals(array(null, null, 'value', 'mandatory'), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals([null, null, 'value', 'last'], self::getResolver()->getArguments($request, $controller));
     }
 
     public function testGetSessionArguments()
@@ -230,9 +229,9 @@ class ArgumentResolverTest extends TestCase
         $session = new Session(new MockArraySessionStorage());
         $request = Request::create('/');
         $request->setSession($session);
-        $controller = array($this, 'controllerWithSession');
+        $controller = $this->controllerWithSession(...);
 
-        $this->assertEquals(array($session), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals([$session], self::getResolver()->getArguments($request, $controller));
     }
 
     public function testGetSessionArgumentsWithExtendedSession()
@@ -240,56 +239,94 @@ class ArgumentResolverTest extends TestCase
         $session = new ExtendingSession(new MockArraySessionStorage());
         $request = Request::create('/');
         $request->setSession($session);
-        $controller = array($this, 'controllerWithExtendingSession');
+        $controller = $this->controllerWithExtendingSession(...);
 
-        $this->assertEquals(array($session), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals([$session], self::getResolver()->getArguments($request, $controller));
     }
 
     public function testGetSessionArgumentsWithInterface()
     {
-        $session = $this->getMockBuilder(SessionInterface::class)->getMock();
+        $session = $this->createMock(SessionInterface::class);
         $request = Request::create('/');
         $request->setSession($session);
-        $controller = array($this, 'controllerWithSessionInterface');
+        $controller = $this->controllerWithSessionInterface(...);
 
-        $this->assertEquals(array($session), self::$resolver->getArguments($request, $controller));
+        $this->assertEquals([$session], self::getResolver()->getArguments($request, $controller));
     }
 
-    /**
-     * @expectedException \RuntimeException
-     */
     public function testGetSessionMissMatchWithInterface()
     {
-        $session = $this->getMockBuilder(SessionInterface::class)->getMock();
+        $this->expectException(\RuntimeException::class);
+        $session = $this->createMock(SessionInterface::class);
         $request = Request::create('/');
         $request->setSession($session);
-        $controller = array($this, 'controllerWithExtendingSession');
+        $controller = $this->controllerWithExtendingSession(...);
 
-        self::$resolver->getArguments($request, $controller);
+        self::getResolver()->getArguments($request, $controller);
     }
 
-    /**
-     * @expectedException \RuntimeException
-     */
     public function testGetSessionMissMatchWithImplementation()
     {
+        $this->expectException(\RuntimeException::class);
         $session = new Session(new MockArraySessionStorage());
         $request = Request::create('/');
         $request->setSession($session);
-        $controller = array($this, 'controllerWithExtendingSession');
+        $controller = $this->controllerWithExtendingSession(...);
 
-        self::$resolver->getArguments($request, $controller);
+        self::getResolver()->getArguments($request, $controller);
     }
 
-    /**
-     * @expectedException \RuntimeException
-     */
     public function testGetSessionMissMatchOnNull()
     {
+        $this->expectException(\RuntimeException::class);
         $request = Request::create('/');
-        $controller = array($this, 'controllerWithExtendingSession');
+        $controller = $this->controllerWithExtendingSession(...);
 
-        self::$resolver->getArguments($request, $controller);
+        self::getResolver()->getArguments($request, $controller);
+    }
+
+    public function testTargetedResolver()
+    {
+        $resolver = self::getResolver([], [DefaultValueResolver::class => new DefaultValueResolver()]);
+
+        $request = Request::create('/');
+        $request->attributes->set('foo', 'bar');
+        $controller = $this->controllerTargetingResolver(...);
+
+        $this->assertSame([1], $resolver->getArguments($request, $controller));
+    }
+
+    public function testDisabledResolver()
+    {
+        $resolver = self::getResolver(namedResolvers: []);
+
+        $request = Request::create('/');
+        $request->attributes->set('foo', 'bar');
+        $controller = $this->controllerDisablingResolver(...);
+
+        $this->assertSame([1], $resolver->getArguments($request, $controller));
+    }
+
+    public function testManyTargetedResolvers()
+    {
+        $resolver = self::getResolver(namedResolvers: []);
+
+        $request = Request::create('/');
+        $controller = $this->controllerTargetingManyResolvers(...);
+
+        $this->expectException(\LogicException::class);
+        $resolver->getArguments($request, $controller);
+    }
+
+    public function testUnknownTargetedResolver()
+    {
+        $resolver = self::getResolver(namedResolvers: []);
+
+        $request = Request::create('/');
+        $controller = $this->controllerTargetingUnknownResolver(...);
+
+        $this->expectException(ResolverNotFoundException::class);
+        $resolver->getArguments($request, $controller);
     }
 
     public function __invoke($foo, $bar = null)
@@ -304,32 +341,53 @@ class ArgumentResolverTest extends TestCase
     {
     }
 
-    protected function controllerWithFooAndDefaultBar($foo, $bar = null)
+    public function controllerWithFooAndDefaultBar($foo, $bar = null)
     {
     }
 
-    protected function controllerWithFooBarFoobar($foo, $bar, $foobar)
+    public function controllerWithFooBarFoobar($foo, $bar, $foobar)
     {
     }
 
-    protected function controllerWithRequest(Request $request)
+    public function controllerWithRequest(Request $request)
     {
     }
 
-    protected function controllerWithExtendingRequest(ExtendingRequest $request)
+    public function controllerWithExtendingRequest(ExtendingRequest $request)
     {
     }
 
-    protected function controllerWithSession(Session $session)
+    public function controllerWithSession(Session $session)
     {
     }
 
-    protected function controllerWithSessionInterface(SessionInterface $session)
+    public function controllerWithSessionInterface(SessionInterface $session)
     {
     }
 
-    protected function controllerWithExtendingSession(ExtendingSession $session)
+    public function controllerWithExtendingSession(ExtendingSession $session)
     {
+    }
+
+    public function controllerTargetingResolver(#[ValueResolver(DefaultValueResolver::class)] int $foo = 1)
+    {
+    }
+
+    public function controllerDisablingResolver(#[ValueResolver(RequestAttributeValueResolver::class, disabled: true)] int $foo = 1)
+    {
+    }
+
+    public function controllerTargetingManyResolvers(
+        #[ValueResolver(RequestAttributeValueResolver::class)]
+        #[ValueResolver(DefaultValueResolver::class)]
+        int $foo
+    ) {
+    }
+
+    public function controllerTargetingUnknownResolver(
+        #[ValueResolver('foo')]
+        int $bar
+    ) {
     }
 }
 
