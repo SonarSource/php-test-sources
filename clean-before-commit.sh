@@ -27,4 +27,5 @@ echo "Remove unintendent files... Done"
 echo "Big files (please review them):"
 find . -size +250k
 
-echo "Done\n"
+echo "Done"
+echo "==============================="
