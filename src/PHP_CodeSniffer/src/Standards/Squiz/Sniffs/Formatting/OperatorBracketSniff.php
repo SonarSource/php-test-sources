@@ -9,8 +9,8 @@
 
 namespace PHP_CodeSniffer\Standards\Squiz\Sniffs\Formatting;
 
-use PHP_CodeSniffer\Sniffs\Sniff;
 use PHP_CodeSniffer\Files\File;
+use PHP_CodeSniffer\Sniffs\Sniff;
 use PHP_CodeSniffer\Util\Tokens;
 
 class OperatorBracketSniff implements Sniff
@@ -80,7 +80,8 @@ class OperatorBracketSniff implements Sniff
                     $isAssignment = isset(Tokens::$assignmentTokens[$tokens[$previous]['code']]);
                     $isEquality   = isset(Tokens::$equalityTokens[$tokens[$previous]['code']]);
                     $isComparison = isset(Tokens::$comparisonTokens[$tokens[$previous]['code']]);
-                    if ($isAssignment === true || $isEquality === true || $isComparison === true) {
+                    $isUnary      = isset(Tokens::$operators[$tokens[$previous]['code']]);
+                    if ($isAssignment === true || $isEquality === true || $isComparison === true || $isUnary === true) {
                         // This is a negative assignment or comparison.
                         // We need to check that the minus and the number are
                         // adjacent.
@@ -104,8 +105,11 @@ class OperatorBracketSniff implements Sniff
                 T_COLON               => true,
                 T_OPEN_PARENTHESIS    => true,
                 T_OPEN_SQUARE_BRACKET => true,
+                T_OPEN_CURLY_BRACKET  => true,
                 T_OPEN_SHORT_ARRAY    => true,
                 T_CASE                => true,
+                T_EXIT                => true,
+                T_MATCH_ARROW         => true,
             ];
 
             if (isset($invalidTokens[$tokens[$previousToken]['code']]) === true) {
@@ -137,12 +141,16 @@ class OperatorBracketSniff implements Sniff
             T_NS_SEPARATOR,
             T_THIS,
             T_SELF,
+            T_STATIC,
+            T_PARENT,
             T_OBJECT_OPERATOR,
+            T_NULLSAFE_OBJECT_OPERATOR,
             T_DOUBLE_COLON,
             T_OPEN_SQUARE_BRACKET,
             T_CLOSE_SQUARE_BRACKET,
             T_MODULUS,
             T_NONE,
+            T_BITWISE_NOT,
         ];
 
         $allowed += Tokens::$operators;
@@ -160,11 +168,11 @@ class OperatorBracketSniff implements Sniff
                     break;
                 }
 
-                if ($prevCode === T_STRING || $prevCode === T_SWITCH) {
+                if ($prevCode === T_STRING || $prevCode === T_SWITCH || $prevCode === T_MATCH) {
                     // We allow simple operations to not be bracketed.
                     // For example, ceil($one / $two).
                     for ($prev = ($stackPtr - 1); $prev > $bracket; $prev--) {
-                        if (in_array($tokens[$prev]['code'], $allowed) === true) {
+                        if (in_array($tokens[$prev]['code'], $allowed, true) === true) {
                             continue;
                         }
 
@@ -180,7 +188,7 @@ class OperatorBracketSniff implements Sniff
                     }
 
                     for ($next = ($stackPtr + 1); $next < $endBracket; $next++) {
-                        if (in_array($tokens[$next]['code'], $allowed) === true) {
+                        if (in_array($tokens[$next]['code'], $allowed, true) === true) {
                             continue;
                         }
 
@@ -196,11 +204,11 @@ class OperatorBracketSniff implements Sniff
                     }
                 }//end if
 
-                if (in_array($prevCode, Tokens::$scopeOpeners) === true) {
+                if (in_array($prevCode, Tokens::$scopeOpeners, true) === true) {
                     // This operation is inside a control structure like FOREACH
                     // or IF, but has no bracket of it's own.
-                    // The only control structure allowed to do this is SWITCH.
-                    if ($prevCode !== T_SWITCH) {
+                    // The only control structures allowed to do this are SWITCH and MATCH.
+                    if ($prevCode !== T_SWITCH && $prevCode !== T_MATCH) {
                         break;
                     }
                 }
@@ -273,16 +281,20 @@ class OperatorBracketSniff implements Sniff
             T_DNUMBER                  => true,
             T_STRING                   => true,
             T_CONSTANT_ENCAPSED_STRING => true,
+            T_DOUBLE_QUOTED_STRING     => true,
             T_WHITESPACE               => true,
             T_NS_SEPARATOR             => true,
             T_THIS                     => true,
             T_SELF                     => true,
+            T_STATIC                   => true,
             T_OBJECT_OPERATOR          => true,
+            T_NULLSAFE_OBJECT_OPERATOR => true,
             T_DOUBLE_COLON             => true,
             T_MODULUS                  => true,
             T_ISSET                    => true,
             T_ARRAY                    => true,
             T_NONE                     => true,
+            T_BITWISE_NOT              => true,
         ];
 
         // Find the first token in the expression.
@@ -320,6 +332,10 @@ class OperatorBracketSniff implements Sniff
         }//end for
 
         $before = $phpcsFile->findNext(Tokens::$emptyTokens, ($before + 1), null, true);
+
+        // A few extra tokens are allowed to be on the right side of the expression.
+        $allowed[T_EQUAL] = true;
+        $allowed[T_NEW]   = true;
 
         // Find the last token in the expression.
         for ($after = ($stackPtr + 1); $after < $phpcsFile->numTokens; $after++) {
