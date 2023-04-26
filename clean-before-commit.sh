@@ -11,13 +11,11 @@ find . -name "*.doc" -delete
 find . -name "*.docx" -delete
 find . -name "*.gif" -delete
 find . -name "*.ods" -delete
-find . -name "*.md" -delete
 find . -name "*.jpeg" -delete
 find . -name "*.jpg" -delete
 find . -name "*.png" -delete
 find . -name "*.svg" -delete
 find . -name "*.tiff" -delete
-find . -name "*.txt" -delete
 find . -name "*.xls" -delete
 find . -name "*.xlsx" -delete
 find . -name "*.zip" -delete
