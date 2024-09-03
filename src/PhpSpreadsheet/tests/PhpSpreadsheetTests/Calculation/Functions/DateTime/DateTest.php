@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\DateTime;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -14,15 +16,9 @@ use PHPUnit\Framework\TestCase;
 
 class DateTest extends TestCase
 {
-    /**
-     * @var int
-     */
-    private $excelCalendar;
+    private int $excelCalendar;
 
-    /**
-     * @var string
-     */
-    private $returnDateType;
+    private string $returnDateType;
 
     protected function setUp(): void
     {
@@ -42,21 +38,17 @@ class DateTest extends TestCase
 
     /**
      * @dataProvider providerDATE
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToDATE($expectedResult, ...$args): void
+    public function testDirectCallToDATE(float|string $expectedResult, int|string $year, float|int|string $month, float|int|string $day): void
     {
-        $result = Date::fromYMD(...$args);
+        $result = Date::fromYMD($year, $month, $day);
         self::assertSame($expectedResult, $result);
     }
 
     /**
      * @dataProvider providerDATE
-     *
-     * @param mixed $expectedResult
      */
-    public function testDATEAsFormula($expectedResult, ...$args): void
+    public function testDATEAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -69,10 +61,8 @@ class DateTest extends TestCase
 
     /**
      * @dataProvider providerDATE
-     *
-     * @param mixed $expectedResult
      */
-    public function testDATEInWorksheet($expectedResult, ...$args): void
+    public function testDATEInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -97,7 +87,7 @@ class DateTest extends TestCase
     /**
      * @dataProvider providerUnhappyDATE
      */
-    public function testDATEUnhappyPath(string $expectedException, ...$args): void
+    public function testDATEUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -118,7 +108,7 @@ class DateTest extends TestCase
     public static function providerUnhappyDATE(): array
     {
         return [
-            ['Formula Error: Wrong number of arguments for DATE() function', 2023, 03],
+            ['Formula Error: Wrong number of arguments for DATE() function', 2023, 3],
         ];
     }
 

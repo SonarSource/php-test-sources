@@ -7,7 +7,7 @@ require __DIR__ . '/../Header.php';
 
 // Change these values to select the Rendering library that you wish to use
 //Settings::setChartRenderer(\PhpOffice\PhpSpreadsheet\Chart\Renderer\JpGraph::class);
-Settings::setChartRenderer(\PhpOffice\PhpSpreadsheet\Chart\Renderer\MtJpGraphRenderer::class);
+Settings::setChartRenderer(PhpOffice\PhpSpreadsheet\Chart\Renderer\MtJpGraphRenderer::class);
 
 $inputFileType = 'Xlsx';
 $inputFileNames = __DIR__ . '/../templates/32readwrite*[0-9].xlsx';
@@ -19,11 +19,13 @@ if ((isset($argc)) && ($argc > 1)) {
         $inputFileNames[] = __DIR__ . '/../templates/' . $argv[$i];
     }
 } else {
-    $inputFileNames = glob($inputFileNames);
+    $inputFileNames = glob($inputFileNames) ?: [];
 }
 if (count($inputFileNames) === 1) {
+    /** @var string[] */
     $unresolvedErrors = [];
 } else {
+    /** @var string[] */
     $unresolvedErrors = [
         // The following spreadsheet was created by 3rd party software,
         // and doesn't include the data that usually accompanies a chart.
@@ -54,6 +56,7 @@ foreach ($inputFileNames as $inputFileName) {
     $spreadsheet = $reader->load($inputFileName);
 
     $helper->log('Iterate worksheets looking at the charts');
+    $renderedCharts = 0;
     foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
         $sheetName = $worksheet->getTitle();
         $helper->log('Worksheet: ' . $sheetName);
@@ -63,10 +66,11 @@ foreach ($inputFileNames as $inputFileName) {
             $helper->log('    There are no charts in this worksheet');
         } else {
             natsort($chartNames);
-            foreach ($chartNames as $i => $chartName) {
-                $chart = $worksheet->getChartByName($chartName);
+            foreach ($chartNames as $j => $chartName) {
+                $i = $renderedCharts + $j;
+                $chart = $worksheet->getChartByNameOrThrow($chartName);
                 if ($chart->getTitle() !== null) {
-                    $caption = '"' . implode(' ', $chart->getTitle()->getCaption()) . '"';
+                    $caption = '"' . $chart->getTitle()->getCaptionText($spreadsheet) . '"';
                 } else {
                     $caption = 'Untitled';
                 }
@@ -86,6 +90,8 @@ foreach ($inputFileNames as $inputFileName) {
                 } catch (Exception $e) {
                     $helper->log('Error rendering chart: ' . $e->getMessage());
                 }
+
+                ++$renderedCharts;
             }
         }
     }

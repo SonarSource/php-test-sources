@@ -1,15 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\DateTime;
 
 use DateTime;
 use DateTimeImmutable;
-use Exception;
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
 use PhpOffice\PhpSpreadsheet\Calculation\DateTimeExcel\Days;
 use PhpOffice\PhpSpreadsheet\Calculation\DateTimeExcel\Days360;
 use PhpOffice\PhpSpreadsheet\Calculation\Exception as CalculationException;
-use PhpOffice\PhpSpreadsheet\Calculation\Information\ExcelError;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheetTests\Calculation\Functions\FormulaArguments;
 use PHPUnit\Framework\TestCase;
@@ -18,22 +18,17 @@ class Days360Test extends TestCase
 {
     /**
      * @dataProvider providerDAYS360
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToDAYS360($expectedResult, ...$args): void
+    public function testDirectCallToDAYS360(mixed $expectedResult, mixed ...$args): void
     {
-        /** @scrutinizer ignore-call */
         $result = Days360::between(...$args);
         self::assertSame($expectedResult, $result);
     }
 
     /**
      * @dataProvider providerDAYS360
-     *
-     * @param mixed $expectedResult
      */
-    public function testDAYS360AsFormula($expectedResult, ...$args): void
+    public function testDAYS360AsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -46,10 +41,8 @@ class Days360Test extends TestCase
 
     /**
      * @dataProvider providerDAYS360
-     *
-     * @param mixed $expectedResult
      */
-    public function testDAYS360InWorksheet($expectedResult, ...$args): void
+    public function testDAYS360InWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -74,7 +67,7 @@ class Days360Test extends TestCase
     /**
      * @dataProvider providerUnhappyDAYS360
      */
-    public function testDAYS360UnhappyPath(string $expectedException, ...$args): void
+    public function testDAYS360UnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -104,13 +97,6 @@ class Days360Test extends TestCase
         $obj1 = new DateTime('2000-3-31');
         $obj2 = new DateTimeImmutable('2000-2-29');
         self::assertSame(31, Days::between($obj1, $obj2));
-    }
-
-    public function testNonDateObject(): void
-    {
-        $obj1 = new Exception();
-        $obj2 = new DateTimeImmutable('2000-2-29');
-        self::assertSame(ExcelError::VALUE(), Days::between($obj1, $obj2));
     }
 
     /**

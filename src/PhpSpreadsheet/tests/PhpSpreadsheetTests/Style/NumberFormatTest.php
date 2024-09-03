@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Style;
 
 use PhpOffice\PhpSpreadsheet\Shared\StringHelper;
@@ -9,43 +11,25 @@ use PHPUnit\Framework\TestCase;
 
 class NumberFormatTest extends TestCase
 {
-    /**
-     * @var string
-     */
-    private $currencyCode;
-
-    /**
-     * @var string
-     */
-    private $decimalSeparator;
-
-    /**
-     * @var string
-     */
-    private $thousandsSeparator;
-
     protected function setUp(): void
     {
-        $this->currencyCode = StringHelper::getCurrencyCode();
-        $this->decimalSeparator = StringHelper::getDecimalSeparator();
-        $this->thousandsSeparator = StringHelper::getThousandsSeparator();
         StringHelper::setDecimalSeparator('.');
         StringHelper::setThousandsSeparator(',');
     }
 
     protected function tearDown(): void
     {
-        StringHelper::setCurrencyCode($this->currencyCode);
-        StringHelper::setDecimalSeparator($this->decimalSeparator);
-        StringHelper::setThousandsSeparator($this->thousandsSeparator);
+        StringHelper::setCurrencyCode(null);
+        StringHelper::setDecimalSeparator(null);
+        StringHelper::setThousandsSeparator(null);
     }
 
     /**
      * @dataProvider providerNumberFormat
      *
-     * @param mixed $expectedResult
+     * @param null|bool|float|int|string $args string to be formatted
      */
-    public function testFormatValueWithMask($expectedResult, ...$args): void
+    public function testFormatValueWithMask(mixed $expectedResult, mixed ...$args): void
     {
         $result = NumberFormat::toFormattedString(...$args);
         self::assertSame($expectedResult, $result);
@@ -59,10 +43,9 @@ class NumberFormatTest extends TestCase
     /**
      * @dataProvider providerNumberFormatFractions
      *
-     * @param mixed $expectedResult
-     * @param mixed $args
+     * @param null|bool|float|int|string $args string to be formatted
      */
-    public function testFormatValueWithMaskFraction($expectedResult, ...$args): void
+    public function testFormatValueWithMaskFraction(mixed $expectedResult, mixed ...$args): void
     {
         $result = NumberFormat::toFormattedString(...$args);
         self::assertEquals($expectedResult, $result);
@@ -76,10 +59,9 @@ class NumberFormatTest extends TestCase
     /**
      * @dataProvider providerNumberFormatDates
      *
-     * @param mixed $expectedResult
-     * @param mixed $args
+     * @param null|bool|float|int|string $args string to be formatted
      */
-    public function testFormatValueWithMaskDate($expectedResult, ...$args): void
+    public function testFormatValueWithMaskDate(mixed $expectedResult, mixed ...$args): void
     {
         $result = NumberFormat::toFormattedString(...$args);
         self::assertEquals($expectedResult, $result);

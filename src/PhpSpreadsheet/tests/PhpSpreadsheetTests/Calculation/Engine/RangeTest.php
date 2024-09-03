@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Engine;
 
+use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
 use PhpOffice\PhpSpreadsheet\Calculation\Information\ExcelError;
 use PhpOffice\PhpSpreadsheet\NamedRange;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -9,28 +12,33 @@ use PHPUnit\Framework\TestCase;
 
 class RangeTest extends TestCase
 {
-    /** @var string */
-    private $incompleteMessage = 'Must be revisited';
+    private string $incompleteMessage = 'Must be revisited';
 
-    /**
-     * @var Spreadsheet
-     */
-    private $spreadSheet;
+    private ?Spreadsheet $spreadSheet = null;
 
-    protected function setUp(): void
+    protected function getSpreadsheet(): Spreadsheet
     {
-        $this->spreadSheet = new Spreadsheet();
-        $this->spreadSheet->getActiveSheet()
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getActiveSheet()
             ->fromArray(array_chunk(range(1, 240), 6), null, 'A1', true);
+
+        return $spreadsheet;
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->spreadSheet !== null) {
+            $this->spreadSheet->disconnectWorksheets();
+            $this->spreadSheet = null;
+        }
     }
 
     /**
      * @dataProvider providerRangeEvaluation
-     *
-     * @param mixed $expectedResult
      */
-    public function testRangeEvaluation(string $formula, $expectedResult): void
+    public function testRangeEvaluation(string $formula, int|string $expectedResult): void
     {
+        $this->spreadSheet = $this->getSpreadsheet();
         $workSheet = $this->spreadSheet->getActiveSheet();
         $workSheet->setCellValue('H1', $formula);
 
@@ -40,7 +48,7 @@ class RangeTest extends TestCase
 
     public static function providerRangeEvaluation(): array
     {
-        return[
+        return [
             'Sum with Simple Range' => ['=SUM(A1:C3)', 72],
             'Count with Simple Range' => ['=COUNT(A1:C3)', 9],
             'Sum with UNION #1' => ['=SUM(A1:B3,A1:C2)', 75],
@@ -68,8 +76,20 @@ class RangeTest extends TestCase
         ];
     }
 
+    public function test3dRangeParsing(): void
+    {
+        // This test shows that parsing throws exception.
+        // Next test shows that formula is still treated as a formula
+        //     despite the parse failure.
+        $this->expectExceptionMessage('3D Range references are not yet supported');
+        $calculation = new Calculation();
+        $calculation->disableBranchPruning();
+        $calculation->parseFormula('=SUM(Worksheet!A1:Worksheet2!B3');
+    }
+
     public function test3dRangeEvaluation(): void
     {
+        $this->spreadSheet = $this->getSpreadsheet();
         $workSheet = $this->spreadSheet->getActiveSheet();
         $workSheet->setCellValue('E1', '=SUM(Worksheet!A1:Worksheet2!B3)');
 
@@ -82,6 +102,7 @@ class RangeTest extends TestCase
      */
     public function testNamedRangeEvaluation(array $ranges, string $formula, int $expectedResult): void
     {
+        $this->spreadSheet = $this->getSpreadsheet();
         $workSheet = $this->spreadSheet->getActiveSheet();
         foreach ($ranges as $id => $range) {
             $this->spreadSheet->addNamedRange(new NamedRange('GROUP' . ++$id, $workSheet, $range));
@@ -95,7 +116,7 @@ class RangeTest extends TestCase
 
     public static function providerNamedRangeEvaluation(): array
     {
-        return[
+        return [
             [['$A$1:$B$3', '$A$1:$C$2'], '=SUM(GROUP1,GROUP2)', 75],
             [['$A$1:$B$3', '$A$1:$C$2'], '=COUNT(GROUP1,GROUP2)', 12],
             [['$A$1:$B$3', '$A$1:$C$2'], '=SUM(GROUP1 GROUP2)', 18],
@@ -120,6 +141,7 @@ class RangeTest extends TestCase
      */
     public function testUTF8NamedRangeEvaluation(array $names, array $ranges, string $formula, int $expectedResult): void
     {
+        $this->spreadSheet = $this->getSpreadsheet();
         $workSheet = $this->spreadSheet->getActiveSheet();
         foreach ($names as $index => $name) {
             $range = $ranges[$index];
@@ -133,7 +155,7 @@ class RangeTest extends TestCase
 
     public static function providerUTF8NamedRangeEvaluation(): array
     {
-        return[
+        return [
             [['Γειά', 'σου', 'Κόσμε'], ['$A$1', '$B$1:$B$2', '$C$1:$C$3'], '=SUM(Γειά,σου,Κόσμε)', 38],
             [['Γειά', 'σου', 'Κόσμε'], ['$A$1', '$B$1:$B$2', '$C$1:$C$3'], '=COUNT(Γειά,σου,Κόσμε)', 6],
             [['Здравствуй', 'мир'], ['$A$1:$A$3', '$C$1:$C$3'], '=SUM(Здравствуй,мир)', 48],
@@ -148,6 +170,7 @@ class RangeTest extends TestCase
         if ($this->incompleteMessage !== '') {
             self::markTestIncomplete($this->incompleteMessage);
         }
+        $this->spreadSheet = $this->getSpreadsheet();
 
         $workSheet = $this->spreadSheet->getActiveSheet();
         $this->spreadSheet->addNamedRange(new NamedRange('COMPOSITE', $workSheet, $composite));
@@ -163,7 +186,7 @@ class RangeTest extends TestCase
 
     public static function providerCompositeNamedRangeEvaluation(): array
     {
-        return[
+        return [
             //  Calculation engine doesn't yet handle union ranges with overlap
             'Union with overlap' => [
                 'A1:C1,A3:C3,B1:C3',

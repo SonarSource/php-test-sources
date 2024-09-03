@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Reader\Gnumeric;
 
 use PhpOffice\PhpSpreadsheet\Reader\Gnumeric;
@@ -10,9 +12,19 @@ class PageSetupTest extends TestCase
 {
     private const MARGIN_PRECISION = 0.001;
 
-    public function testPageSetup(): void
+    public static function fileProvider(): array
     {
-        $filename = 'tests/data/Reader/Gnumeric/PageSetup.gnumeric';
+        return [
+            ['tests/data/Reader/Gnumeric/PageSetup.gnumeric'],
+            ['tests/data/Reader/Gnumeric/PageSetup.gnumeric.unzipped.xml'],
+        ];
+    }
+
+    /**
+     * @dataProvider fileProvider
+     */
+    public function testPageSetup(string $filename): void
+    {
         $reader = new Gnumeric();
         $spreadsheet = $reader->load($filename);
         $assertions = $this->pageSetupAssertions();
@@ -39,9 +51,11 @@ class PageSetupTest extends TestCase
         $spreadsheet->disconnectWorksheets();
     }
 
-    public function testPageMargins(): void
+    /**
+     * @dataProvider fileProvider
+     */
+    public function testPageMargins(string $filename): void
     {
-        $filename = 'tests/data/Reader/Gnumeric/PageSetup.gnumeric';
         $reader = new Gnumeric();
         $spreadsheet = $reader->load($filename);
         $assertions = $this->pageMarginAssertions();

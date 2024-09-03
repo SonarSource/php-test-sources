@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Web;
 
 use PhpOffice\PhpSpreadsheet\Settings;
@@ -13,8 +15,7 @@ use Psr\Http\Message\StreamInterface;
 
 class WebServiceTest extends TestCase
 {
-    /** @var ?Spreadsheet */
-    private $spreadsheet;
+    private ?Spreadsheet $spreadsheet = null;
 
     protected function tearDown(): void
     {

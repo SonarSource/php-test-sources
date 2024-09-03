@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Reader\Csv;
 
 use PhpOffice\PhpSpreadsheet\Reader\Csv;
@@ -8,8 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 class CsvLineEndingTest extends TestCase
 {
-    /** @var string */
-    private $tempFile = '';
+    private string $tempFile = '';
 
     protected function tearDown(): void
     {

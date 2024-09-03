@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,10 +17,7 @@ class ImSumTest extends TestCase
 {
     const COMPLEX_PRECISION = 1E-12;
 
-    /**
-     * @var ComplexAssert
-     */
-    private $complexAssert;
+    private ComplexAssert $complexAssert;
 
     protected function setUp(): void
     {
@@ -29,11 +28,10 @@ class ImSumTest extends TestCase
     /**
      * @dataProvider providerIMSUM
      *
-     * @param mixed $expectedResult
+     * @param string ...$args variadic arguments
      */
-    public function testDirectCallToIMSUM($expectedResult, ...$args): void
+    public function testDirectCallToIMSUM(mixed $expectedResult, ...$args): void
     {
-        /** @scrutinizer ignore-call */
         $result = ComplexOperations::IMSUM(...$args);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $result, self::COMPLEX_PRECISION),
@@ -48,16 +46,15 @@ class ImSumTest extends TestCase
 
     /**
      * @dataProvider providerIMSUM
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMSUMAsFormula($expectedResult, ...$args): void
+    public function testIMSUMAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
         $calculation = Calculation::getInstance();
         $formula = "=IMSUM({$arguments})";
 
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $this->trimIfQuoted((string) $result), self::COMPLEX_PRECISION),
@@ -67,10 +64,8 @@ class ImSumTest extends TestCase
 
     /**
      * @dataProvider providerIMSUM
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMSUMInWorksheet($expectedResult, ...$args): void
+    public function testIMSUMInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -98,7 +93,7 @@ class ImSumTest extends TestCase
     /**
      * @dataProvider providerUnhappyIMSUM
      */
-    public function testIMSUMUnhappyPath(string $expectedException, ...$args): void
+    public function testIMSUMUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

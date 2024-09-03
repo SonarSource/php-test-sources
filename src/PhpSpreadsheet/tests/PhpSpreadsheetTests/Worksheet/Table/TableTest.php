@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Worksheet\Table;
 
+use PhpOffice\PhpSpreadsheet\Cell\AddressRange;
 use PhpOffice\PhpSpreadsheet\Cell\CellAddress;
 use PhpOffice\PhpSpreadsheet\Cell\CellRange;
 use PhpOffice\PhpSpreadsheet\Exception as PhpSpreadsheetException;
@@ -75,6 +78,7 @@ class TableTest extends SetupTeardown
             ['R11C11'],
             ['123'],
             ['=Table'],
+            ['Name/Slash'],
             ['ிக'], // starting with UTF-8 combined character
             [bin2hex(random_bytes(255))], // random string with length greater than 255
         ];
@@ -152,10 +156,9 @@ class TableTest extends SetupTeardown
     }
 
     /**
-     * @param AddressRange|array<int>|string $fullRange
-     * @param string $fullRange
+     * @param AddressRange<CellAddress>|array{0: int, 1: int, 2: int, 3: int}|array{0: int, 1: int}|string $fullRange
      */
-    public function xtestSetRangeValidRange($fullRange, string $actualRange): void
+    public function xtestSetRangeValidRange(string|array|AddressRange $fullRange, string $actualRange): void
     {
         $table = new Table(self::INITIAL_RANGE);
 
@@ -369,16 +372,6 @@ class TableTest extends SetupTeardown
         $table->setColumn($invalidColumn);
     }
 
-    public function testSetColumnWithInvalidDataType(): void
-    {
-        $this->expectException(PhpSpreadsheetException::class);
-
-        $table = new Table(self::INITIAL_RANGE);
-        $invalidColumn = 123.456;
-        // @phpstan-ignore-next-line
-        $table->setColumn($invalidColumn);
-    }
-
     public function testGetColumns(): void
     {
         $table = new Table(self::INITIAL_RANGE);
@@ -452,7 +445,7 @@ class TableTest extends SetupTeardown
 
     public function testGetColumnWithoutRangeSet(): void
     {
-        $this->expectException(\PhpOffice\PhpSpreadsheet\Exception::class);
+        $this->expectException(PhpSpreadsheetException::class);
         $table = new Table(self::INITIAL_RANGE);
 
         //  Clear the range

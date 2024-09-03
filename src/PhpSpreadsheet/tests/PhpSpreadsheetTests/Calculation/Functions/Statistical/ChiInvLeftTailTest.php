@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Statistical;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -8,10 +10,8 @@ class ChiInvLeftTailTest extends AllSetupTeardown
 {
     /**
      * @dataProvider providerCHIINV
-     *
-     * @param mixed $expectedResult
      */
-    public function testCHIINV($expectedResult, ...$args): void
+    public function testCHIINV(mixed $expectedResult, mixed ...$args): void
     {
         $this->runTestCaseReference('CHISQ.INV', $expectedResult, ...$args);
     }
@@ -28,6 +28,7 @@ class ChiInvLeftTailTest extends AllSetupTeardown
         $degrees = 7;
         $calculation = Calculation::getInstance();
         $formula = "=CHISQ.INV($probability, $degrees)";
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertEqualsWithDelta($expectedResult, $result, 1.0e-8);
         $formula = "=CHISQ.DIST($result, $degrees)";

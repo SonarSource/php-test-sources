@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,10 +17,7 @@ class ImSinTest extends TestCase
 {
     const COMPLEX_PRECISION = 1E-12;
 
-    /**
-     * @var ComplexAssert
-     */
-    private $complexAssert;
+    private ComplexAssert $complexAssert;
 
     protected function setUp(): void
     {
@@ -28,13 +27,10 @@ class ImSinTest extends TestCase
 
     /**
      * @dataProvider providerIMSIN
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToIMSIN($expectedResult, ...$args): void
+    public function testDirectCallToIMSIN(string $expectedResult, string $arg): void
     {
-        /** @scrutinizer ignore-call */
-        $result = ComplexFunctions::IMSIN(...$args);
+        $result = ComplexFunctions::IMSIN($arg);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $result, self::COMPLEX_PRECISION),
             $this->complexAssert->getErrorMessage()
@@ -48,16 +44,15 @@ class ImSinTest extends TestCase
 
     /**
      * @dataProvider providerIMSIN
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMSINAsFormula($expectedResult, ...$args): void
+    public function testIMSINAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
         $calculation = Calculation::getInstance();
         $formula = "=IMSIN({$arguments})";
 
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $this->trimIfQuoted((string) $result), self::COMPLEX_PRECISION),
@@ -67,10 +62,8 @@ class ImSinTest extends TestCase
 
     /**
      * @dataProvider providerIMSIN
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMSINInWorksheet($expectedResult, ...$args): void
+    public function testIMSINInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -98,7 +91,7 @@ class ImSinTest extends TestCase
     /**
      * @dataProvider providerUnhappyIMSIN
      */
-    public function testIMSINUnhappyPath(string $expectedException, ...$args): void
+    public function testIMSINUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

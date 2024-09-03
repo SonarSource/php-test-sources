@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Shared;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Exception as CalculationException;
@@ -10,11 +12,9 @@ use PHPUnit\Framework\TestCase;
 
 class Date2Test extends TestCase
 {
-    /** @var ?Spreadsheet */
-    private $spreadsheet;
+    private ?Spreadsheet $spreadsheet = null;
 
-    /** @var int */
-    private $calculateDateTimeType;
+    private int $calculateDateTimeType;
 
     protected function setUp(): void
     {
@@ -39,12 +39,8 @@ class Date2Test extends TestCase
 
     /**
      * @dataProvider providerTimeOnly
-     *
-     * @param float|int $expectedResult
-     * @param float|int $value
-     * @param string $format
      */
-    public function testTimeOnly($expectedResult, $value, ?string $format = null): void
+    public function testTimeOnly(int|float $expectedResult, int|float|string $value, ?string $format = null): void
     {
         Cell::setCalculateDateTimeType(Cell::CALCULATE_TIME_FLOAT);
         $this->spreadsheet = new Spreadsheet();
@@ -88,12 +84,8 @@ class Date2Test extends TestCase
 
     /**
      * @dataProvider providerDateAndTime
-     *
-     * @param float|int $expectedResult
-     * @param float|int $value
-     * @param string $format
      */
-    public function testDateAndTime($expectedResult, $value, ?string $format = null): void
+    public function testDateAndTime(int|float $expectedResult, int|float|string $value, ?string $format = null): void
     {
         Cell::setCalculateDateTimeType(Cell::CALCULATE_DATE_TIME_FLOAT);
         $this->spreadsheet = new Spreadsheet();
@@ -137,12 +129,8 @@ class Date2Test extends TestCase
 
     /**
      * @dataProvider providerAsis
-     *
-     * @param float|int $expectedResult
-     * @param float|int $value
-     * @param string $format
      */
-    public function testDefault($expectedResult, $value, ?string $format = null): void
+    public function testDefault(int|float $expectedResult, int|float|string $value, ?string $format = null): void
     {
         //Cell::setCalculateDateTimeType(Cell::CALCULATE_DATE_TIME_ASIS);
         $this->spreadsheet = new Spreadsheet();
@@ -163,12 +151,8 @@ class Date2Test extends TestCase
 
     /**
      * @dataProvider providerAsis
-     *
-     * @param float|int $expectedResult
-     * @param float|int $value
-     * @param string $format
      */
-    public function testAsis($expectedResult, $value, ?string $format = null): void
+    public function testAsis(int|float $expectedResult, int|float|string $value, ?string $format = null): void
     {
         Cell::setCalculateDateTimeType(Cell::CALCULATE_DATE_TIME_ASIS);
         $this->spreadsheet = new Spreadsheet();

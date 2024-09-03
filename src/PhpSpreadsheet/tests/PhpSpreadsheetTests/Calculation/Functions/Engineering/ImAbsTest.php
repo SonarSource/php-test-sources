@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,22 +17,17 @@ class ImAbsTest extends TestCase
 
     /**
      * @dataProvider providerIMABS
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToIMABS($expectedResult, ...$args): void
+    public function testDirectCallToIMABS(float|int|string $expectedResult, string $arg): void
     {
-        /** @scrutinizer ignore-call */
-        $result = ComplexFunctions::IMABS(...$args);
+        $result = ComplexFunctions::IMABS($arg);
         self::assertEqualsWithDelta($expectedResult, $result, self::COMPLEX_PRECISION);
     }
 
     /**
      * @dataProvider providerIMABS
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMABSAsFormula($expectedResult, ...$args): void
+    public function testIMABSAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -43,10 +40,8 @@ class ImAbsTest extends TestCase
 
     /**
      * @dataProvider providerIMABS
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMABSInWorksheet($expectedResult, ...$args): void
+    public function testIMABSInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -71,7 +66,7 @@ class ImAbsTest extends TestCase
     /**
      * @dataProvider providerUnhappyIMABS
      */
-    public function testIMABSUnhappyPath(string $expectedException, ...$args): void
+    public function testIMABSUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

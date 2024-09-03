@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,10 +17,7 @@ class ImCotTest extends TestCase
 {
     const COMPLEX_PRECISION = 1E-12;
 
-    /**
-     * @var ComplexAssert
-     */
-    private $complexAssert;
+    private ComplexAssert $complexAssert;
 
     protected function setUp(): void
     {
@@ -28,13 +27,10 @@ class ImCotTest extends TestCase
 
     /**
      * @dataProvider providerIMCOT
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToIMCOT($expectedResult, ...$args): void
+    public function testDirectCallToIMCOT(float|string $expectedResult, string $arg): void
     {
-        /** @scrutinizer ignore-call */
-        $result = ComplexFunctions::IMCOT(...$args);
+        $result = ComplexFunctions::IMCOT($arg);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $result, self::COMPLEX_PRECISION),
             $this->complexAssert->getErrorMessage()
@@ -48,16 +44,15 @@ class ImCotTest extends TestCase
 
     /**
      * @dataProvider providerIMCOT
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMCOTAsFormula($expectedResult, ...$args): void
+    public function testIMCOTAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
         $calculation = Calculation::getInstance();
         $formula = "=IMCOT({$arguments})";
 
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $this->trimIfQuoted((string) $result), self::COMPLEX_PRECISION),
@@ -67,10 +62,8 @@ class ImCotTest extends TestCase
 
     /**
      * @dataProvider providerIMCOT
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMCOTInWorksheet($expectedResult, ...$args): void
+    public function testIMCOTInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -98,7 +91,7 @@ class ImCotTest extends TestCase
     /**
      * @dataProvider providerUnhappyIMCOT
      */
-    public function testIMCOTUnhappyPath(string $expectedException, ...$args): void
+    public function testIMCOTUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

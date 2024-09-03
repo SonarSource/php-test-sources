@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\DateTime;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -12,10 +14,7 @@ use PHPUnit\Framework\TestCase;
 
 class TimeValueTest extends TestCase
 {
-    /**
-     * @var string
-     */
-    private $returnDateType;
+    private string $returnDateType;
 
     protected function setUp(): void
     {
@@ -33,22 +32,17 @@ class TimeValueTest extends TestCase
 
     /**
      * @dataProvider providerTIMEVALUE
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToTIMEVALUE($expectedResult, ...$args): void
+    public function testDirectCallToTIMEVALUE(int|float|string $expectedResult, bool|int|string $value): void
     {
-        /** @scrutinizer ignore-call */
-        $result = TimeValue::fromString(...$args);
+        $result = TimeValue::fromString($value);
         self::assertEqualsWithDelta($expectedResult, $result, 1.0e-8);
     }
 
     /**
      * @dataProvider providerTIMEVALUE
-     *
-     * @param mixed $expectedResult
      */
-    public function testTIMEVALUEAsFormula($expectedResult, ...$args): void
+    public function testTIMEVALUEAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -61,10 +55,8 @@ class TimeValueTest extends TestCase
 
     /**
      * @dataProvider providerTIMEVALUE
-     *
-     * @param mixed $expectedResult
      */
-    public function testTIMEVALUEInWorksheet($expectedResult, ...$args): void
+    public function testTIMEVALUEInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -84,6 +76,15 @@ class TimeValueTest extends TestCase
     public static function providerTIMEVALUE(): array
     {
         return require 'tests/data/Calculation/DateTime/TIMEVALUE.php';
+    }
+
+    public function testRefArgNull(): void
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->getCell('A1')->setValue('=TIMEVALUE(B1)');
+        self::assertSame('#VALUE!', $sheet->getCell('A1')->getCalculatedValue());
+        $spreadsheet->disconnectWorksheets();
     }
 
     public function testTIMEVALUEtoUnixTimestamp(): void
@@ -111,7 +112,7 @@ class TimeValueTest extends TestCase
     /**
      * @dataProvider providerUnhappyTIMEVALUE
      */
-    public function testTIMEVALUEUnhappyPath(string $expectedException, ...$args): void
+    public function testTIMEVALUEUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

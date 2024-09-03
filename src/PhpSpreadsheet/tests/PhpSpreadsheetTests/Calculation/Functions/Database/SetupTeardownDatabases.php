@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Database;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Functions;
@@ -12,15 +14,9 @@ class SetupTeardownDatabases extends TestCase
 {
     protected const RESULT_CELL = 'Z1';
 
-    /**
-     * @var ?Spreadsheet
-     */
-    private $spreadsheet;
+    private ?Spreadsheet $spreadsheet = null;
 
-    /**
-     * @var ?Worksheet
-     */
-    private $sheet;
+    private ?Worksheet $sheet = null;
 
     protected function setUp(): void
     {
@@ -132,10 +128,7 @@ class SetupTeardownDatabases extends TestCase
         return $this->sheet;
     }
 
-    /**
-     * @param int|string $field
-     */
-    public function prepareWorksheetWithFormula(string $functionName, array $database, $field, array $criteria): void
+    public function prepareWorksheetWithFormula(string $functionName, array $database, null|int|string $field, array $criteria): void
     {
         $sheet = $this->getSheet();
         $maxCol = '';

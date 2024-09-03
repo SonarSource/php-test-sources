@@ -1,3 +1,16 @@
 *                               text=auto
 src/PHP_CodeSniffer/src/Standards/Generic/Tests/Files/LineEndingsUnitTest.css    text    eol=crlf
 src/PHP_CodeSniffer/src/Standards/Generic/Tests/Files/LineEndingsUnitTest.js     text    eol=crlf
+src/PhpSpreadsheet/samples/templates/SylkTest.slk                                text    eol=crlf
+src/PhpSpreadsheet/samples/templates/excel2003.xml                               text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Xml/excel2003.iso8859-1.xml                 text    eol=crlf
+src/PhpSpreadsheet/samples/Reader2/sampleData/example1.tsv                       text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Slk/issue.2267c.slk                         text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Slk/issue.2276.slk                          text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Slk/issue.3658.slk                          text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Xml/ArrayFormula.xml                        text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Xml/datavalidations.xml                     text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Xml/hyperlinkbase.xml                       text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Xml/issue.3658.xml                          text    eol=crlf
+src/PhpSpreadsheet/tests/data/Reader/Xml/splits.xml                              text    eol=crlf
+src/PhpSpreadsheet/tests/data/Writer/XLSX/ArrayFunctions2.json                   text    eol=crlf

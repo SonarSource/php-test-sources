@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\MathTrig;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -8,12 +10,8 @@ class RandBetweenTest extends AllSetupTeardown
 {
     /**
      * @dataProvider providerRANDBETWEEN
-     *
-     * @param mixed $expectedResult
-     * @param mixed $min
-     * @param mixed $max
      */
-    public function testRANDBETWEEN($expectedResult, $min = 'omitted', $max = 'omitted'): void
+    public function testRANDBETWEEN(int|string $expectedResult, null|bool|int|string $min = 'omitted', null|bool|int|string $max = 'omitted'): void
     {
         $this->mightHaveException($expectedResult);
         $sheet = $this->getSheet();
@@ -60,9 +58,9 @@ class RandBetweenTest extends AllSetupTeardown
         $formula = "=RandBetween({$argument1}, {$argument2})";
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertIsArray($result);
-        self::assertCount($expectedRows, /** @scrutinizer ignore-type */ $result);
+        self::assertCount($expectedRows, $result);
         self::assertIsArray($result[0]);
-        self::assertCount($expectedColumns, /** @scrutinizer ignore-type */ $result[0]);
+        self::assertCount($expectedColumns, $result[0]);
     }
 
     public static function providerRandBetweenArray(): array

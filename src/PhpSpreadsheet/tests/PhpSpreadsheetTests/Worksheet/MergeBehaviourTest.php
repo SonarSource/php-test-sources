@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Worksheet;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -8,19 +10,13 @@ use PhpOffice\PhpSpreadsheetTests\Functional\AbstractFunctional;
 
 class MergeBehaviourTest extends AbstractFunctional
 {
-    /**
-     * @var array
-     */
-    private static $testDataRaw = [
+    private static array $testDataRaw = [
         [1.1, 2.2, '=ROUND(A1+B1, 1)'],
         [4.4, 5.5, '=ROUND(A2+B2, 1)'],
         ['=ROUND(A1+A2, 1)', '=ROUND(B1+B2, 1)', '=ROUND(A3+B3, 1)'],
     ];
 
-    /**
-     * @var array
-     */
-    private $testDataFormatted = [
+    private array $testDataFormatted = [
         ['=DATE(1960, 12, 19)', '=DATE(2022, 09, 15)'],
     ];
 

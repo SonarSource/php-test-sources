@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\MathTrig;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -8,11 +10,8 @@ class OddTest extends AllSetupTeardown
 {
     /**
      * @dataProvider providerODD
-     *
-     * @param mixed $expectedResult
-     * @param mixed $value
      */
-    public function testODD($expectedResult, $value): void
+    public function testODD(int|string $expectedResult, float|int|string $value): void
     {
         $this->mightHaveException($expectedResult);
         $sheet = $this->getSheet();

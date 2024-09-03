@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\LookupRef;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -12,12 +14,8 @@ class HLookupTest extends TestCase
 {
     /**
      * @dataProvider providerHLOOKUP
-     *
-     * @param mixed $expectedResult
-     * @param mixed $lookup
-     * @param mixed $rowIndex
      */
-    public function testHLOOKUP($expectedResult, $lookup, array $values, $rowIndex, ?bool $rangeLookup = null): void
+    public function testHLOOKUP(mixed $expectedResult, mixed $lookup, array $values, mixed $rowIndex, ?bool $rangeLookup = null): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -47,8 +45,14 @@ class HLookupTest extends TestCase
 
         $boolArg = self::parseRangeLookup($rangeLookup);
         $sheet->getCell('ZZ8')->setValue($lookup);
-        $sheet->getCell('ZZ7')->setValue($rowIndex);
-        $sheet->getCell('ZZ1')->setValue("=HLOOKUP(ZZ8, A1:$maxColLetter$maxRow, ZZ7$boolArg)");
+        if (is_array($rowIndex)) {
+            $sheet->fromArray($rowIndex, null, 'ZZ10', true);
+            $indexarg = 'ZZ10:ZZ' . (string) (9 + count($rowIndex));
+        } else {
+            $sheet->getCell('ZZ10')->setValue($rowIndex);
+            $indexarg = 'ZZ10';
+        }
+        $sheet->getCell('ZZ1')->setValue("=HLOOKUP(ZZ8, A1:$maxColLetter$maxRow, $indexarg$boolArg)");
         self::assertEquals($expectedResult, $sheet->getCell('ZZ1')->getCalculatedValue());
 
         $spreadsheet->disconnectWorksheets();
@@ -138,6 +142,12 @@ class HLookupTest extends TestCase
                 '{"Axles", "Bolts"}',
                 '{"Axles", "Bearings", "Bolts"; 4, 4, 9; 5, 7, 10; 6, 8, 11}',
                 '{2; 3}',
+            ],
+            'issue 3561' => [
+                [[8, 9, 8]],
+                '6',
+                '{1,6,11;2,7,12;3,8,13;4,9,14;5,10,15}',
+                '{3,4,3}',
             ],
         ];
     }

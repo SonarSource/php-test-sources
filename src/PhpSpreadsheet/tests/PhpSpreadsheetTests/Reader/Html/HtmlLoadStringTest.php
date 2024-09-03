@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Reader\Html;
 
 use PhpOffice\PhpSpreadsheet\Reader\Exception as ReaderException;
@@ -104,7 +106,7 @@ class HtmlLoadStringTest extends TestCase
             </body>
             </html>
             EOF;
-        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Html();
+        $reader = new Html();
         $spreadsheet = $reader->loadFromString($html);
         $reader->setSheetIndex(1);
         $reader->loadFromString($html, $spreadsheet);

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\DateTime;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -12,10 +14,7 @@ use PHPUnit\Framework\TestCase;
 
 class IsoWeekNumTest extends TestCase
 {
-    /**
-     * @var int
-     */
-    private $excelCalendar;
+    private int $excelCalendar;
 
     protected function setUp(): void
     {
@@ -33,24 +32,17 @@ class IsoWeekNumTest extends TestCase
 
     /**
      * @dataProvider providerISOWEEKNUM
-     *
-     * @param mixed $expectedResult
-     * @param mixed ...$args
      */
-    public function testDirectCallToISOWEEKNUM($expectedResult, ...$args): void
+    public function testDirectCallToISOWEEKNUM(mixed $expectedResult, mixed ...$args): void
     {
-        /** @scrutinizer ignore-call */
         $result = Week::isoWeekNumber(...$args);
         self::assertSame($expectedResult, $result);
     }
 
     /**
      * @dataProvider providerISOWEEKNUM
-     *
-     * @param mixed $expectedResult
-     * @param mixed ...$args
      */
-    public function testISOWEEKNUMAsFormula($expectedResult, ...$args): void
+    public function testISOWEEKNUMAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -63,10 +55,8 @@ class IsoWeekNumTest extends TestCase
 
     /**
      * @dataProvider providerISOWEEKNUM
-     *
-     * @param mixed $expectedResult
      */
-    public function testISOWEEKNUMInWorksheet($expectedResult, ...$args): void
+    public function testISOWEEKNUMInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -91,7 +81,7 @@ class IsoWeekNumTest extends TestCase
     /**
      * @dataProvider providerUnhappyISOWEEKNUM
      */
-    public function testISOWEEKNUMUnhappyPath(string $expectedException, ...$args): void
+    public function testISOWEEKNUMUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -112,20 +102,17 @@ class IsoWeekNumTest extends TestCase
     public static function providerUnhappyISOWEEKNUM(): array
     {
         return [
-            ['Formula Error: Wrong number of arguments for ISOWEEKNUM() function', 2023, 03],
+            ['Formula Error: Wrong number of arguments for ISOWEEKNUM() function', 2023, 3],
         ];
     }
 
     /**
      * @dataProvider providerISOWEEKNUM1904
-     *
-     * @param mixed $expectedResult
      */
-    public function testISOWEEKNUMWith1904Calendar($expectedResult, ...$args): void
+    public function testISOWEEKNUMWith1904Calendar(mixed $expectedResult, mixed ...$args): void
     {
         SharedDate::setExcelCalendar(SharedDate::CALENDAR_MAC_1904);
 
-        /** @scrutinizer ignore-call */
         $result = Week::isoWeekNumber(...$args);
         self::assertSame($expectedResult, $result);
     }

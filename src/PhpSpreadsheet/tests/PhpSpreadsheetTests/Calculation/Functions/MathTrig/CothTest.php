@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\MathTrig;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -8,11 +10,8 @@ class CothTest extends AllSetupTeardown
 {
     /**
      * @dataProvider providerCOTH
-     *
-     * @param mixed $expectedResult
-     * @param mixed $angle
      */
-    public function testCOTH($expectedResult, $angle): void
+    public function testCOTH(float|int|string $expectedResult, float|int|string $angle): void
     {
         $this->mightHaveException($expectedResult);
         $sheet = $this->getSheet();

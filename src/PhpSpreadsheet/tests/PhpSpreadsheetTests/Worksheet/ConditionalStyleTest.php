@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Worksheet;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -9,10 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 class ConditionalStyleTest extends TestCase
 {
-    /**
-     * @var Spreadsheet
-     */
-    protected $spreadsheet;
+    protected Spreadsheet $spreadsheet;
 
     protected function setUp(): void
     {

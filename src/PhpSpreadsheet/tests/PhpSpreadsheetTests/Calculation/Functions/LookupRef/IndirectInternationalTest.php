@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\LookupRef;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Functions;
@@ -7,8 +9,7 @@ use PhpOffice\PhpSpreadsheet\Settings;
 
 class IndirectInternationalTest extends AllSetupTeardown
 {
-    /** @var string */
-    private $locale;
+    private string $locale;
 
     protected function setUp(): void
     {
@@ -52,6 +53,7 @@ class IndirectInternationalTest extends AllSetupTeardown
         $sheet->getCell('B10')->setValue('=INDIRECT("R1C3", false)');
         $maxRow = $sheet->getHighestRow();
         for ($row = 2; $row <= $maxRow; ++$row) {
+            /** @var null|bool|float|int|string */
             $rowLocale = $sheet->getCell("A$row")->getValue();
             if (in_array($rowLocale, $sameAsEnglish, true) && in_array($locale, $sameAsEnglish, true)) {
                 $expectedResult = 'text';
