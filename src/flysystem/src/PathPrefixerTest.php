@@ -30,6 +30,7 @@ class PathPrefixerTest extends TestCase
 
     /**
      * @test
+     *
      * @dataProvider dpRootPaths
      */
     public function an_absolute_root_path_is_supported(string $rootPath, string $separator, string $path, string $expectedPath): void
@@ -39,7 +40,7 @@ class PathPrefixerTest extends TestCase
         $this->assertEquals($expectedPath, $prefixedPath);
     }
 
-    public function dpRootPaths(): iterable
+    public static function dpRootPaths(): iterable
     {
         yield "unix-style root path" => ['/', '/', 'path.txt', '/path.txt'];
         yield "windows-style root path" => ['\\', '\\', 'path.txt', '\\path.txt'];

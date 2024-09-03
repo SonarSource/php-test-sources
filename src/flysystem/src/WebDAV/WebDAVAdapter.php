@@ -332,6 +332,10 @@ class WebDAVAdapter implements FilesystemAdapter, PublicUrlGenerator
 
     public function move(string $source, string $destination, Config $config): void
     {
+        if ($source === $destination) {
+            return;
+        }
+
         if ($this->manualMove) {
             $this->manualMove($source, $destination);
 
@@ -369,6 +373,10 @@ class WebDAVAdapter implements FilesystemAdapter, PublicUrlGenerator
 
     public function copy(string $source, string $destination, Config $config): void
     {
+        if ($source === $destination) {
+            return;
+        }
+
         if ($this->manualCopy) {
             $this->manualCopy($source, $destination);
 
@@ -428,7 +436,7 @@ class WebDAVAdapter implements FilesystemAdapter, PublicUrlGenerator
 
     private function propFind(string $path, string $section, string $property): mixed
     {
-        $location = $this->prefixer->prefixPath($path);
+        $location = $this->encodePath($this->prefixer->prefixPath($path));
 
         try {
             $result = $this->client->propFind($location, [$property]);

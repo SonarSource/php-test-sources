@@ -51,15 +51,15 @@ class S3ClientStub extends SimpleS3Client
      */
     private $stagedResult = [];
 
-    public function __construct(SimpleS3Client $client)
+    public function __construct(SimpleS3Client $client, $configuration = [])
     {
         $this->actualClient = $client;
-        parent::__construct([], null, new MockHttpClient());
+        parent::__construct($configuration, null, new MockHttpClient());
     }
 
-    public function throwExceptionWhenExecutingCommand(string $commandName, Exception $exception = null): void
+    public function throwExceptionWhenExecutingCommand(string $commandName, ?Exception $exception = null): void
     {
-        $this->stagedExceptions[$commandName] = $exception ?: new NetworkException();
+        $this->stagedExceptions[$commandName] = $exception ?? new NetworkException();
     }
 
     public function stageResultForCommand(string $commandName, Result $result): void
@@ -181,7 +181,7 @@ class S3ClientStub extends SimpleS3Client
         return $this->actualClient->getUrl($bucket, $key);
     }
 
-    public function getPresignedUrl(string $bucket, string $key, ?DateTimeImmutable $expires = null): string
+    public function getPresignedUrl(string $bucket, string $key, ?DateTimeImmutable $expires = null, ?string $versionId = null): string
     {
         return $this->actualClient->getPresignedUrl($bucket, $key, $expires);
     }

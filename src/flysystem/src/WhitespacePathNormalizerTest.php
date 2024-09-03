@@ -20,6 +20,7 @@ class WhitespacePathNormalizerTest extends TestCase
 
     /**
      * @test
+     *
      * @dataProvider  pathProvider
      */
     public function path_normalizing(string $input, string $expected): void
@@ -33,7 +34,7 @@ class WhitespacePathNormalizerTest extends TestCase
     /**
      * @return array<array<string>>
      */
-    public function pathProvider(): array
+    public static function pathProvider(): array
     {
         return [
             ['.', ''],
@@ -60,6 +61,7 @@ class WhitespacePathNormalizerTest extends TestCase
 
     /**
      * @test
+     *
      * @dataProvider invalidPathProvider
      */
     public function guarding_against_path_traversal(string $input): void
@@ -70,6 +72,7 @@ class WhitespacePathNormalizerTest extends TestCase
 
     /**
      * @test
+     *
      * @dataProvider dpFunkyWhitespacePaths
      */
     public function rejecting_funky_whitespace(string $path): void
@@ -78,7 +81,7 @@ class WhitespacePathNormalizerTest extends TestCase
         $this->normalizer->normalizePath($path);
     }
 
-    public function dpFunkyWhitespacePaths(): iterable
+    public static function dpFunkyWhitespacePaths(): iterable
     {
         return [["some\0/path.txt"], ["s\x09i.php"]];
     }
@@ -86,7 +89,7 @@ class WhitespacePathNormalizerTest extends TestCase
     /**
      * @return array<array<string>>
      */
-    public function invalidPathProvider(): array
+    public static function invalidPathProvider(): array
     {
         return [
             ['something/../../../hehe'],

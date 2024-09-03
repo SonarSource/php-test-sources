@@ -6,6 +6,7 @@ namespace League\Flysystem\AsyncAwsS3;
 
 use AsyncAws\Core\Exception\Http\ClientException;
 use AsyncAws\Core\Stream\ResultStream;
+use AsyncAws\S3\Input\GetObjectRequest;
 use AsyncAws\S3\Result\HeadObjectOutput;
 use AsyncAws\S3\S3Client;
 use AsyncAws\S3\ValueObject\AwsObject;
@@ -72,6 +73,9 @@ class AsyncAwsS3Adapter implements FilesystemAdapter, PublicUrlGenerator, Checks
         'Tagging',
         'WebsiteRedirectLocation',
         'ChecksumAlgorithm',
+        'CopySourceSSECustomerAlgorithm',
+        'CopySourceSSECustomerKey',
+        'CopySourceSSECustomerKeyMD5',
     ];
 
     /**
@@ -105,14 +109,14 @@ class AsyncAwsS3Adapter implements FilesystemAdapter, PublicUrlGenerator, Checks
         private S3Client $client,
         private string $bucket,
         string $prefix = '',
-        VisibilityConverter $visibility = null,
-        MimeTypeDetector $mimeTypeDetector = null,
+        ?VisibilityConverter $visibility = null,
+        ?MimeTypeDetector $mimeTypeDetector = null,
         array $forwardedOptions = self::AVAILABLE_OPTIONS,
         array $metadataFields = self::EXTRA_METADATA_FIELDS,
     ) {
         $this->prefixer = new PathPrefixer($prefix);
-        $this->visibility = $visibility ?: new PortableVisibilityConverter();
-        $this->mimeTypeDetector = $mimeTypeDetector ?: new FinfoMimeTypeDetector();
+        $this->visibility = $visibility ?? new PortableVisibilityConverter();
+        $this->mimeTypeDetector = $mimeTypeDetector ?? new FinfoMimeTypeDetector();
         $this->forwardedOptions = $forwardedOptions;
         $this->metadataFields = $metadataFields;
     }
@@ -196,8 +200,8 @@ class AsyncAwsS3Adapter implements FilesystemAdapter, PublicUrlGenerator, Checks
 
     public function createDirectory(string $path, Config $config): void
     {
-        $defaultVisibility = $config->get('directory_visibility', $this->visibility->defaultForDirectories());
-        $config = $config->withDefaults(['visibility' => $defaultVisibility]);
+        $defaultVisibility = $config->get(Config::OPTION_DIRECTORY_VISIBILITY, $this->visibility->defaultForDirectories());
+        $config = $config->withDefaults([Config::OPTION_VISIBILITY => $defaultVisibility]);
         $this->upload(rtrim($path, '/') . '/', '', $config);
     }
 
@@ -303,6 +307,10 @@ class AsyncAwsS3Adapter implements FilesystemAdapter, PublicUrlGenerator, Checks
 
     public function move(string $source, string $destination, Config $config): void
     {
+        if ($source === $destination) {
+            return;
+        }
+
         try {
             $this->copy($source, $destination, $config);
             $this->delete($source);
@@ -313,15 +321,22 @@ class AsyncAwsS3Adapter implements FilesystemAdapter, PublicUrlGenerator, Checks
 
     public function copy(string $source, string $destination, Config $config): void
     {
+        if ($source === $destination) {
+            return;
+        }
+
         try {
-            /** @var string $visibility */
-            $visibility = $config->get(Config::OPTION_VISIBILITY) ?: $this->visibility($source)->visibility();
+            $visibility = $config->get(Config::OPTION_VISIBILITY);
+
+            if ($visibility === null && $config->get(Config::OPTION_RETAIN_VISIBILITY, true)) {
+                $visibility = $this->visibility($source)->visibility();
+            }
         } catch (Throwable $exception) {
             throw UnableToCopyFile::fromLocationTo($source, $destination, $exception);
         }
 
         $arguments = [
-            'ACL' => $this->visibility->visibilityToAcl($visibility),
+            'ACL' => $this->visibility->visibilityToAcl($visibility ?: 'private'),
             'Bucket' => $this->bucket,
             'Key' => $this->prefixer->prefixPath($destination),
             'CopySource' => $this->bucket . '/' . $this->prefixer->prefixPath($source),
@@ -406,7 +421,7 @@ class AsyncAwsS3Adapter implements FilesystemAdapter, PublicUrlGenerator, Checks
     /**
      * @param HeadObjectOutput|AwsObject|CommonPrefix $item
      */
-    private function mapS3ObjectMetadata($item, string $path = null): StorageAttributes
+    private function mapS3ObjectMetadata($item, ?string $path = null): StorageAttributes
     {
         if (null === $path) {
             if ($item instanceof AwsObject) {
@@ -526,10 +541,13 @@ class AsyncAwsS3Adapter implements FilesystemAdapter, PublicUrlGenerator, Checks
 
     public function temporaryUrl(string $path, DateTimeInterface $expiresAt, Config $config): string
     {
-        $location = $this->prefixer->prefixPath($path);
-
         try {
-            return $this->client->getPresignedUrl($this->bucket, $location, DateTimeImmutable::createFromInterface($expiresAt));
+            $request = new GetObjectRequest([
+                'Bucket' => $this->bucket,
+                'Key' => $this->prefixer->prefixPath($path),
+            ] + $config->get('get_object_options', []));
+
+            return $this->client->presign($request, DateTimeImmutable::createFromInterface($expiresAt));
         } catch (Throwable $exception) {
             throw UnableToGenerateTemporaryUrl::dueToError($path, $exception);
         }

@@ -12,6 +12,7 @@ use League\Flysystem\UnableToCreateDirectory;
 use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\UnableToReadFile;
 use League\Flysystem\UnableToWriteFile;
+use League\Flysystem\Visibility;
 use phpseclib3\Net\SFTP;
 
 use function class_exists;
@@ -30,7 +31,7 @@ class SftpAdapterTest extends FilesystemAdapterTestCase
     }
 
     /**
-     * @var ConnectionProvider
+     * @var StubSftpConnectionProvider
      */
     private static $connectionProvider;
 
@@ -55,7 +56,7 @@ class SftpAdapterTest extends FilesystemAdapterTestCase
         /** @var SftpStub $connection */
         $connection = static::connectionProvider()->provideConnection();
         $this->connection = $connection;
-        $this->connection->reset();
+        $this->connection->resetTripWires();
     }
 
     /**
@@ -214,7 +215,55 @@ class SftpAdapterTest extends FilesystemAdapterTestCase
         $this->assertCount(0, iterator_to_array($contents));
     }
 
-    private static function connectionProvider(): ConnectionProvider
+    /**
+     * @test
+     */
+    public function it_can_proactively_close_a_connection(): void
+    {
+        /** @var SftpAdapter $adapter */
+        $adapter = $this->adapter();
+
+        self::assertFalse($adapter->fileExists('does not exists at all'));
+
+        self::assertTrue(static::$connectionProvider->connection->isConnected());
+
+        $adapter->disconnect();
+
+        self::assertFalse(static::$connectionProvider->connection->isConnected());
+    }
+    /**
+     * @test
+     * @fixme Move to FilesystemAdapterTestCase once all adapters pass
+     */
+    public function moving_a_file_and_overwriting(): void
+    {
+        $this->runScenario(function() {
+            $adapter = $this->adapter();
+            $adapter->write(
+                'source.txt',
+                'contents to be moved',
+                new Config([Config::OPTION_VISIBILITY => Visibility::PUBLIC])
+            );
+            $adapter->write(
+                'destination.txt',
+                'contents to be overwritten',
+                new Config([Config::OPTION_VISIBILITY => Visibility::PUBLIC])
+            );
+            $adapter->move('source.txt', 'destination.txt', new Config());
+            $this->assertFalse(
+                $adapter->fileExists('source.txt'),
+                'After moving a file should no longer exist in the original location.'
+            );
+            $this->assertTrue(
+                $adapter->fileExists('destination.txt'),
+                'After moving, a file should be present at the new location.'
+            );
+            $this->assertEquals(Visibility::PUBLIC, $adapter->visibility('destination.txt')->visibility());
+            $this->assertEquals('contents to be moved', $adapter->read('destination.txt'));
+        });
+    }
+
+    private static function connectionProvider(): StubSftpConnectionProvider
     {
         if ( ! static::$connectionProvider instanceof ConnectionProvider) {
             static::$connectionProvider = new StubSftpConnectionProvider('localhost', 'foo', 'pass', 2222);
@@ -229,8 +278,7 @@ class SftpAdapterTest extends FilesystemAdapterTestCase
     private function adapterWithInvalidRoot(): SftpAdapter
     {
         $provider = static::connectionProvider();
-        $adapter = new SftpAdapter($provider, '/invalid');
 
-        return $adapter;
+        return new SftpAdapter($provider, '/invalid');
     }
 }

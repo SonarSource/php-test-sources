@@ -19,13 +19,11 @@ use League\Flysystem\StorageAttributes;
 use League\Flysystem\UnableToCheckFileExistence;
 use League\Flysystem\UnableToDeleteFile;
 use League\Flysystem\UnableToMoveFile;
-use League\Flysystem\UnableToProvideChecksum;
 use League\Flysystem\UnableToRetrieveMetadata;
 use League\Flysystem\UnableToWriteFile;
 use League\Flysystem\Visibility;
 use RuntimeException;
 
-use function file_get_contents;
 use function getenv;
 use function iterator_to_array;
 
@@ -81,6 +79,15 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
         self::$adapter = null;
     }
 
+    protected function setUp(): void
+    {
+        if (PHP_VERSION_ID < 80100) {
+            $this->markTestSkipped('AWS does not support this anymore.');
+        }
+
+        parent::setUp();
+    }
+
     private static function s3Client(): S3ClientInterface
     {
         if (static::$s3Client instanceof S3ClientInterface) {
@@ -125,6 +132,7 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
 
     /**
      * @test
+     *
      * @see https://github.com/thephpleague/flysystem-aws-s3-v3/issues/291
      */
     public function issue_291(): void
@@ -226,6 +234,7 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
 
     /**
      * @test
+     *
      * @dataProvider dpFailingMetadataGetters
      */
     public function failing_to_retrieve_metadata(Exception $exception, string $getterName): void
@@ -241,7 +250,7 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
         $adapter->{$getterName}('filename.txt');
     }
 
-    public function dpFailingMetadataGetters(): iterable
+    public static function dpFailingMetadataGetters(): iterable
     {
         yield "mimeType" => [UnableToRetrieveMetadata::mimeType('filename.txt'), 'mimeType'];
         yield "lastModified" => [UnableToRetrieveMetadata::lastModified('filename.txt'), 'lastModified'];
@@ -264,6 +273,7 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
 
     /**
      * @test
+     *
      * @dataProvider casesWhereHttpStreamingInfluencesSeekability
      */
     public function streaming_reads_are_not_seekable_and_non_streaming_are(bool $streaming, bool $seekable): void
@@ -282,7 +292,7 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
         $this->assertEquals($seekable, $metadata['seekable']);
     }
 
-    public function casesWhereHttpStreamingInfluencesSeekability(): Generator
+    public static function casesWhereHttpStreamingInfluencesSeekability(): Generator
     {
         yield "not streaming reads have seekable stream" => [false, true];
         yield "streaming reads have non-seekable stream" => [true, false];
@@ -290,6 +300,7 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
 
     /**
      * @test
+     *
      * @dataProvider casesWhereHttpStreamingInfluencesSeekability
      */
     public function configuring_http_streaming_via_options(bool $streaming): void
@@ -306,6 +317,7 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
 
     /**
      * @test
+     *
      * @dataProvider casesWhereHttpStreamingInfluencesSeekability
      */
     public function use_globally_configured_options(bool $streaming): void
@@ -328,6 +340,40 @@ class AwsS3V3AdapterTest extends FilesystemAdapterTestCase
         $this->assertSame('text/plain', $mimeTypeSource);
 
         $adapter->move('source.txt', 'destination.txt', new Config(
+            ['ContentType' => 'text/plain+special', 'MetadataDirective' => 'REPLACE']
+        ));
+        $mimeTypeDestination = $adapter->mimeType('destination.txt')->mimeType();
+        $this->assertSame('text/plain+special', $mimeTypeDestination);
+    }
+
+    /**
+     * @test
+     */
+    public function moving_without_updated_metadata(): void
+    {
+        $adapter = $this->adapter();
+        $adapter->write('source.txt', 'contents to be moved', new Config(['ContentType' => 'text/plain']));
+        $mimeTypeSource = $adapter->mimeType('source.txt')->mimeType();
+        $this->assertSame('text/plain', $mimeTypeSource);
+
+        $adapter->move('source.txt', 'destination.txt', new Config(
+            ['ContentType' => 'text/plain+special']
+        ));
+        $mimeTypeDestination = $adapter->mimeType('destination.txt')->mimeType();
+        $this->assertSame('text/plain', $mimeTypeDestination);
+    }
+
+    /**
+     * @test
+     */
+    public function copying_with_updated_metadata(): void
+    {
+        $adapter = $this->adapter();
+        $adapter->write('source.txt', 'contents to be moved', new Config(['ContentType' => 'text/plain']));
+        $mimeTypeSource = $adapter->mimeType('source.txt')->mimeType();
+        $this->assertSame('text/plain', $mimeTypeSource);
+
+        $adapter->copy('source.txt', 'destination.txt', new Config(
             ['ContentType' => 'text/plain+special', 'MetadataDirective' => 'REPLACE']
         ));
         $mimeTypeDestination = $adapter->mimeType('destination.txt')->mimeType();
