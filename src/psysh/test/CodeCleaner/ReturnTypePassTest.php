@@ -13,6 +13,9 @@ namespace Psy\Test\CodeCleaner;
 
 use Psy\CodeCleaner\ReturnTypePass;
 
+/**
+ * @group isolation-fail
+ */
 class ReturnTypePassTest extends CodeCleanerTestCase
 {
     /**
@@ -20,11 +23,28 @@ class ReturnTypePassTest extends CodeCleanerTestCase
      */
     public function getReady()
     {
-        if (\version_compare(\PHP_VERSION, '7.1', '<')) {
-            $this->markTestSkipped();
-        }
-
         $this->setPass(new ReturnTypePass());
+    }
+
+    /**
+     * @dataProvider happyPaths
+     */
+    public function testHappyPath($code)
+    {
+        $result = $this->parseAndTraverse($code);
+        $this->assertIsArray($result);
+    }
+
+    public function happyPaths()
+    {
+        return [
+            ['$x = function(): DateTime { return new DateTime(); };'],
+            ['$x = function(): ?DateTime { return new DateTime(); };'],
+            ['$x = function(): A|B { return new C(); };'],
+            ['$x = function(): A|DateTime { return new C(); };'],
+            ['$x = function(): A&B { return new C(); };'],
+            ['$x = function(): A&DateTime { return new C(); };'],
+        ];
     }
 
     /**

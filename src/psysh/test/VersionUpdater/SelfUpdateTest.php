@@ -22,6 +22,9 @@ use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @group isolation-fail
+ */
 class SelfUpdateTest extends \Psy\Test\TestCase
 {
     private function getSelfUpdater(Checker $checker, Installer $installer): SelfUpdate
@@ -247,7 +250,7 @@ class SelfUpdateTest extends \Psy\Test\TestCase
         return $downloader;
     }
 
-    private function getMockOutput(string $expectOutput = null)
+    private function getMockOutput(?string $expectOutput = null)
     {
         $methods = \get_class_methods(OutputInterface::class);
         $builder = $this->getMockBuilder(OutputInterface::class);
