@@ -1,3 +1,0 @@
-framework:
-    http_method_override: false
-    semaphore: redis://localhost
