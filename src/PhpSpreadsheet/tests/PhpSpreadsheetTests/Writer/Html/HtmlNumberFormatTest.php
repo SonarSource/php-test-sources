@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Writer\Html;
 
 use DOMDocument;
@@ -11,36 +13,18 @@ use PhpOffice\PhpSpreadsheetTests\Functional;
 
 class HtmlNumberFormatTest extends Functional\AbstractFunctional
 {
-    /**
-     * @var string
-     */
-    private $currency;
-
-    /**
-     * @var string
-     */
-    private $decsep;
-
-    /**
-     * @var string
-     */
-    private $thosep;
-
     protected function setUp(): void
     {
-        $this->currency = StringHelper::getCurrencyCode();
         StringHelper::setCurrencyCode('$');
-        $this->decsep = StringHelper::getDecimalSeparator();
         StringHelper::setDecimalSeparator('.');
-        $this->thosep = StringHelper::getThousandsSeparator();
         StringHelper::setThousandsSeparator(',');
     }
 
     protected function tearDown(): void
     {
-        StringHelper::setCurrencyCode($this->currency);
-        StringHelper::setDecimalSeparator($this->decsep);
-        StringHelper::setThousandsSeparator($this->thosep);
+        StringHelper::setCurrencyCode(null);
+        StringHelper::setDecimalSeparator(null);
+        StringHelper::setThousandsSeparator(null);
     }
 
     public function testColorNumberFormat(): void
@@ -153,12 +137,8 @@ class HtmlNumberFormatTest extends Functional\AbstractFunctional
 
     /**
      * @dataProvider providerNumberFormat
-     *
-     * @param mixed $expectedResult
-     * @param mixed $val
-     * @param mixed $fmt
      */
-    public function testFormatValueWithMask($expectedResult, $val, $fmt): void
+    public function testFormatValueWithMask(mixed $expectedResult, mixed $val, string $fmt): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -189,12 +169,8 @@ class HtmlNumberFormatTest extends Functional\AbstractFunctional
 
     /**
      * @dataProvider providerNumberFormatDates
-     *
-     * @param mixed $expectedResult
-     * @param mixed $val
-     * @param mixed $fmt
      */
-    public function testFormatValueWithMaskDate($expectedResult, $val, $fmt): void
+    public function testFormatValueWithMaskDate(mixed $expectedResult, mixed $val, string $fmt): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();

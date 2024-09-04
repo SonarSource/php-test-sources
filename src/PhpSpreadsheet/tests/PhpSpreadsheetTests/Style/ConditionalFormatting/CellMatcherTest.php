@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Style\ConditionalFormatting;
 
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
@@ -12,10 +14,7 @@ use PHPUnit\Framework\TestCase;
 
 class CellMatcherTest extends TestCase
 {
-    /**
-     * @var ?Spreadsheet
-     */
-    protected $spreadsheet;
+    protected ?Spreadsheet $spreadsheet = null;
 
     protected function loadSpreadsheet(): Spreadsheet
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Writer\Xls;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -10,13 +12,9 @@ use ReflectionClass;
 
 class WorkbookTest extends TestCase
 {
-    /**
-     * @var Workbook
-     */
-    private $workbook;
+    private Workbook $workbook;
 
-    /** @var ?Spreadsheet */
-    private $spreadsheet;
+    private ?Spreadsheet $spreadsheet = null;
 
     protected function tearDown(): void
     {
@@ -78,6 +76,7 @@ class WorkbookTest extends TestCase
         $propertyPalette->setAccessible(true);
 
         $palette = $propertyPalette->getValue($this->workbook);
+        self::assertIsArray($palette);
 
         $newColor1 = [0x00, 0x00, 0x01, 0x00];
         $newColor2 = [0x00, 0x00, 0x02, 0x00];
@@ -136,12 +135,8 @@ class WorkbookTest extends TestCase
 
     /**
      * Change palette color to rgb string.
-     *
-     * @param array $palette palette color
-     *
-     * @return string rgb string
      */
-    private function paletteToColor($palette)
+    private function paletteToColor(array $palette): string
     {
         return $this->right('00' . dechex((int) ($palette[0])), 2)
             . $this->right('00' . dechex((int) ($palette[1])), 2)
@@ -153,10 +148,8 @@ class WorkbookTest extends TestCase
      *
      * @param string $value text to get right character
      * @param int $nbchar number of char at right of string
-     *
-     * @return string
      */
-    private function right($value, $nbchar)
+    private function right(string $value, int $nbchar): string
     {
         return mb_substr($value, mb_strlen($value) - $nbchar, $nbchar);
     }

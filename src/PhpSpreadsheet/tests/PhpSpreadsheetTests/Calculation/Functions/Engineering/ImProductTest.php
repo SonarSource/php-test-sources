@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,10 +17,7 @@ class ImProductTest extends TestCase
 {
     const COMPLEX_PRECISION = 1E-12;
 
-    /**
-     * @var ComplexAssert
-     */
-    private $complexAssert;
+    private ComplexAssert $complexAssert;
 
     protected function setUp(): void
     {
@@ -29,11 +28,10 @@ class ImProductTest extends TestCase
     /**
      * @dataProvider providerIMPRODUCT
      *
-     * @param mixed $expectedResult
+     * @param string ...$args variadic arguments
      */
-    public function testDirectCallToIMPRODUCT($expectedResult, ...$args): void
+    public function testDirectCallToIMPRODUCT(mixed $expectedResult, ...$args): void
     {
-        /** @scrutinizer ignore-call */
         $result = ComplexOperations::IMPRODUCT(...$args);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $result, self::COMPLEX_PRECISION),
@@ -48,16 +46,15 @@ class ImProductTest extends TestCase
 
     /**
      * @dataProvider providerIMPRODUCT
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMPRODUCTAsFormula($expectedResult, ...$args): void
+    public function testIMPRODUCTAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
         $calculation = Calculation::getInstance();
         $formula = "=IMPRODUCT({$arguments})";
 
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $this->trimIfQuoted((string) $result), self::COMPLEX_PRECISION),
@@ -67,10 +64,8 @@ class ImProductTest extends TestCase
 
     /**
      * @dataProvider providerIMPRODUCT
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMPRODUCTInWorksheet($expectedResult, ...$args): void
+    public function testIMPRODUCTInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -98,7 +93,7 @@ class ImProductTest extends TestCase
     /**
      * @dataProvider providerUnhappyIMPRODUCT
      */
-    public function testIMPRODUCTUnhappyPath(string $expectedException, ...$args): void
+    public function testIMPRODUCTUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

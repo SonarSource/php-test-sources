@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -16,50 +18,52 @@ class ConvertUoMTest extends TestCase
     public function testGetConversionGroups(): void
     {
         $result = ConvertUOM::getConversionCategories();
-        self::assertIsArray($result);
+        self::assertContains('Weight and Mass', $result);
     }
 
     public function testGetConversionGroupUnits(): void
     {
         $result = ConvertUOM::getConversionCategoryUnits();
-        self::assertIsArray($result);
+        self::assertArrayHasKey('Speed', $result);
+        self::assertIsArray($result['Speed']);
+        self::assertContains('mph', $result['Speed']);
     }
 
     public function testGetConversionGroupUnitDetails(): void
     {
         $result = ConvertUOM::getConversionCategoryUnitDetails();
-        self::assertIsArray($result);
+        self::assertArrayHasKey('Information', $result);
+        self::assertIsArray($result['Information']);
+        self::assertContains(['unit' => 'byte', 'description' => 'Byte'], $result['Information']);
     }
 
     public function testGetConversionMultipliers(): void
     {
         $result = ConvertUOM::getConversionMultipliers();
-        self::assertIsArray($result);
+        self::assertArrayHasKey('k', $result);
+        self::assertSame(['multiplier' => 1000.0, 'name' => 'kilo'], $result['k']);
     }
 
     public function testGetBinaryConversionMultipliers(): void
     {
         $result = ConvertUOM::getBinaryConversionMultipliers();
-        self::assertIsArray($result);
+        self::assertArrayHasKey('ki', $result);
+        self::assertSame(['multiplier' => 1024, 'name' => 'kibi'], $result['ki']);
     }
 
     /**
      * @dataProvider providerCONVERTUOM
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToCONVERTUOM($expectedResult, ...$args): void
+    public function testDirectCallToCONVERTUOM(float|int|string $expectedResult, float|int|string $value, string $from, string $to): void
     {
-        $result = ConvertUOM::convert(...$args);
+        $result = ConvertUOM::convert($value, $from, $to);
         self::assertEqualsWithDelta($expectedResult, $result, self::UOM_PRECISION);
     }
 
     /**
      * @dataProvider providerCONVERTUOM
-     *
-     * @param mixed $expectedResult
      */
-    public function testCONVERTUOMAsFormula($expectedResult, ...$args): void
+    public function testCONVERTUOMAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -72,10 +76,8 @@ class ConvertUoMTest extends TestCase
 
     /**
      * @dataProvider providerCONVERTUOM
-     *
-     * @param mixed $expectedResult
      */
-    public function testCONVERTUOMInWorksheet($expectedResult, ...$args): void
+    public function testCONVERTUOMInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -100,7 +102,7 @@ class ConvertUoMTest extends TestCase
     /**
      * @dataProvider providerUnhappyCONVERTUOM
      */
-    public function testCONVERTUOMUnhappyPath(string $expectedException, ...$args): void
+    public function testCONVERTUOMUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

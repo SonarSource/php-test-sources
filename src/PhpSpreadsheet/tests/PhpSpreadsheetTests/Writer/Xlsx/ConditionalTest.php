@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Writer\Xlsx;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -12,15 +14,9 @@ use PhpOffice\PhpSpreadsheetTests\Functional\AbstractFunctional;
 
 class ConditionalTest extends AbstractFunctional
 {
-    /**
-     * @var string
-     */
-    protected $cellRange;
+    protected string $cellRange;
 
-    /**
-     * @var Style
-     */
-    protected $style;
+    protected Style $style;
 
     protected function setUp(): void
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Document;
 
 use DateTime;
@@ -10,13 +12,9 @@ use PHPUnit\Framework\TestCase;
 
 class PropertiesTest extends TestCase
 {
-    /**
-     * @var Properties
-     */
-    private $properties;
+    private Properties $properties;
 
-    /** @var float */
-    private $startTime;
+    private float $startTime;
 
     protected function setup(): void
     {
@@ -48,11 +46,8 @@ class PropertiesTest extends TestCase
 
     /**
      * @dataProvider providerCreationTime
-     *
-     * @param mixed $expectedCreationTime
-     * @param mixed $created
      */
-    public function testSetCreated($expectedCreationTime, $created): void
+    public function testSetCreated(null|int $expectedCreationTime, null|int|string $created): void
     {
         $expectedCreationTime = $expectedCreationTime ?? $this->startTime;
 
@@ -80,11 +75,8 @@ class PropertiesTest extends TestCase
 
     /**
      * @dataProvider providerModifiedTime
-     *
-     * @param mixed $expectedModifiedTime
-     * @param mixed $modified
      */
-    public function testSetModified($expectedModifiedTime, $modified): void
+    public function testSetModified(mixed $expectedModifiedTime, null|int|string $modified): void
     {
         $expectedModifiedTime = $expectedModifiedTime ?? $this->startTime;
 
@@ -160,14 +152,8 @@ class PropertiesTest extends TestCase
 
     /**
      * @dataProvider providerCustomProperties
-     *
-     * @param mixed $expectedType
-     * @param mixed $expectedValue
-     * @param string $propertyName
-     * @param mixed $propertyValue
-     * @param ?string $propertyType
      */
-    public function testSetCustomProperties($expectedType, $expectedValue, $propertyName, $propertyValue, $propertyType = null): void
+    public function testSetCustomProperties(mixed $expectedType, mixed $expectedValue, string $propertyName, null|bool|float|int|string $propertyValue, ?string $propertyType = null): void
     {
         if ($propertyType === null) {
             $this->properties->setCustomProperty($propertyName, $propertyValue);
@@ -176,6 +162,7 @@ class PropertiesTest extends TestCase
         }
         self::assertTrue($this->properties->isCustomPropertySet($propertyName));
         self::assertSame($expectedType, $this->properties->getCustomPropertyType($propertyName));
+        /** @var float|int|string */
         $result = $this->properties->getCustomPropertyValue($propertyName);
         if ($expectedType === Properties::PROPERTY_TYPE_DATE) {
             $result = Date::formattedDateTimeFromTimestamp("$result", 'Y-m-d', new DateTimeZone('UTC'));
@@ -191,7 +178,7 @@ class PropertiesTest extends TestCase
             [Properties::PROPERTY_TYPE_FLOAT, 1.17, 'Version', 1.17],
             [Properties::PROPERTY_TYPE_INTEGER, 2, 'Revision', 2],
             [Properties::PROPERTY_TYPE_BOOLEAN, true, 'Tested', true],
-            [Properties::PROPERTY_TYPE_DATE, '2021-03-17', 'Test Date', '2021-03-17', Properties::PROPERTY_TYPE_DATE],
+            [Properties::PROPERTY_TYPE_DATE, '2021-03-17', 'Test Date', '2021-03-17T00:00:00Z', Properties::PROPERTY_TYPE_DATE],
         ];
     }
 

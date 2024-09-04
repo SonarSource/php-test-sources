@@ -8,7 +8,7 @@
  * @author    Andy Prevost
  * @copyright 2012 - 2020 Marcus Bointon
  * @copyright 2004 - 2009 Andy Prevost
- * @license   http://www.gnu.org/copyleft/lesser.html GNU Lesser General Public License
+ * @license   https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html GNU Lesser General Public License
  */
 
 namespace PHPMailer\Test\PHPMailer;
@@ -472,7 +472,7 @@ EOT;
         //Make sure phar paths are rejected
         self::assertFalse($this->Mail->addAttachment('phar://pharfile.php', 'pharfile.php'));
         //Make sure any path that looks URLish is rejected
-        self::assertFalse($this->Mail->addAttachment('http://example.com/test.php', 'test.php'));
+        self::assertFalse($this->Mail->addAttachment('https://example.com/test.php', 'test.php'));
         self::assertFalse(
             $this->Mail->addAttachment(
                 'ssh2.sftp://user:pass@attacker-controlled.example.com:22/tmp/payload.phar',
@@ -1190,6 +1190,35 @@ EOT;
             'Bad count of "to" recipients'
         );
     }
+
+    /**
+     * Test SMTP Xclient options
+     */
+    public function testSmtpXclient()
+    {
+        $this->Mail->isSMTP();
+        $this->Mail->SMTPAuth = false;
+        $this->Mail->setSMTPXclientAttribute('ADDR', '127.0.0.1');
+        $this->Mail->setSMTPXclientAttribute('LOGIN', 'user@example.com');
+        $this->Mail->setSMTPXclientAttribute('HELO', 'test.example.com');
+        $this->assertFalse($this->Mail->setSMTPXclientAttribute('INVALID', 'value'));
+
+        $attributes = $this->Mail->getSMTPXclientAttributes();
+        $this->assertEquals('test.example.com', $attributes['HELO']);
+
+        // remove attribute
+        $this->Mail->setSMTPXclientAttribute('HELO', null);
+        $attributes = $this->Mail->getSMTPXclientAttributes();
+        $this->assertEquals(['ADDR' => '127.0.0.1', 'LOGIN' => 'user@example.com'], $attributes);
+
+        $this->Mail->Subject .= ': Testing XCLIENT';
+        $this->buildBody();
+        $this->Mail->clearAllRecipients();
+        self::assertTrue($this->Mail->addAddress('a@example.com'), 'Addressing failed');
+        $this->Mail->preSend();
+        self::assertTrue($this->Mail->send(), 'send failed');
+    }
+
 
     /**
      * Test SMTP host connections.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Style\ConditionalFormatting\Wizard;
 
 use PhpOffice\PhpSpreadsheet\Exception;
@@ -10,20 +12,11 @@ use PHPUnit\Framework\TestCase;
 
 class CellValueWizardTest extends TestCase
 {
-    /**
-     * @var Style
-     */
-    protected $style;
+    protected Style $style;
 
-    /**
-     * @var string
-     */
-    protected $range = '$C$3:$E$5';
+    protected string $range = '$C$3:$E$5';
 
-    /**
-     * @var Wizard
-     */
-    protected $wizardFactory;
+    protected Wizard $wizardFactory;
 
     protected function setUp(): void
     {
@@ -33,11 +26,8 @@ class CellValueWizardTest extends TestCase
 
     /**
      * @dataProvider basicCellValueDataProvider
-     *
-     * @param mixed $operand
-     * @param mixed $expectedCondition
      */
-    public function testBasicCellValueWizard(string $operator, $operand, string $expectedOperator, $expectedCondition): void
+    public function testBasicCellValueWizard(string $operator, mixed $operand, string $expectedOperator, mixed $expectedCondition): void
     {
         $ruleType = Wizard::CELL_VALUE;
         /** @var Wizard\CellValue $wizard */
@@ -75,11 +65,8 @@ class CellValueWizardTest extends TestCase
 
     /**
      * @dataProvider relativeCellValueDataProvider
-     *
-     * @param mixed $operand
-     * @param mixed $expectedCondition
      */
-    public function testRelativeCellValueWizard($operand, $expectedCondition): void
+    public function testRelativeCellValueWizard(mixed $operand, mixed $expectedCondition): void
     {
         $ruleType = Wizard::CELL_VALUE;
         /** @var Wizard\CellValue $wizard */
@@ -109,11 +96,8 @@ class CellValueWizardTest extends TestCase
 
     /**
      * @dataProvider formulaCellValueDataProvider
-     *
-     * @param mixed $operand
-     * @param mixed $expectedCondition
      */
-    public function testCellValueWizardWithFormula($operand, $expectedCondition): void
+    public function testCellValueWizardWithFormula(mixed $operand, mixed $expectedCondition): void
     {
         $ruleType = Wizard::CELL_VALUE;
         /** @var Wizard\CellValue $wizard */

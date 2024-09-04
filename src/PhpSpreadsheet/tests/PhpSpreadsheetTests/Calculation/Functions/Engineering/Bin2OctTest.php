@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -13,10 +15,7 @@ use PHPUnit\Framework\TestCase;
 
 class Bin2OctTest extends TestCase
 {
-    /**
-     * @var string
-     */
-    private $compatibilityMode;
+    private string $compatibilityMode;
 
     protected function setUp(): void
     {
@@ -30,13 +29,10 @@ class Bin2OctTest extends TestCase
 
     /**
      * @dataProvider providerBIN2OCT
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToBIN2OCT($expectedResult, ...$args): void
+    public function testDirectCallToBIN2OCT(mixed $expectedResult, bool|float|int|string $value, null|float|int|string $digits = null): void
     {
-        /** @scrutinizer ignore-call */
-        $result = ConvertBinary::toOctal(...$args);
+        $result = ($digits === null) ? ConvertBinary::toOctal($value) : ConvertBinary::toOctal($value, $digits);
         self::assertSame($expectedResult, $result);
     }
 
@@ -47,26 +43,23 @@ class Bin2OctTest extends TestCase
 
     /**
      * @dataProvider providerBIN2OCT
-     *
-     * @param mixed $expectedResult
      */
-    public function testBIN2OCTAsFormula($expectedResult, ...$args): void
+    public function testBIN2OCTAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
         $calculation = Calculation::getInstance();
         $formula = "=BIN2OCT({$arguments})";
 
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertSame($expectedResult, $this->trimIfQuoted((string) $result));
     }
 
     /**
      * @dataProvider providerBIN2OCT
-     *
-     * @param mixed $expectedResult
      */
-    public function testBIN2OCTInWorksheet($expectedResult, ...$args): void
+    public function testBIN2OCTInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -91,7 +84,7 @@ class Bin2OctTest extends TestCase
     /**
      * @dataProvider providerUnhappyBIN2OCT
      */
-    public function testBIN2OCTUnhappyPath(string $expectedException, ...$args): void
+    public function testBIN2OCTUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -118,15 +111,12 @@ class Bin2OctTest extends TestCase
 
     /**
      * @dataProvider providerBIN2OCTOds
-     *
-     * @param mixed $expectedResult
      */
-    public function testBIN2OCTOds($expectedResult, ...$args): void
+    public function testBIN2OCTOds(mixed $expectedResult, bool|float|int|string $value, ?int $digits = null): void
     {
         Functions::setCompatibilityMode(Functions::COMPATIBILITY_OPENOFFICE);
 
-        /** @scrutinizer ignore-call */
-        $result = ConvertBinary::toDecimal(...$args);
+        $result = ($digits === null) ? ConvertBinary::toOctal($value) : ConvertBinary::toOctal($value, $digits);
         self::assertSame($expectedResult, $result);
     }
 
@@ -141,14 +131,17 @@ class Bin2OctTest extends TestCase
         $formula = '=BIN2OCT(101.1)';
 
         Functions::setCompatibilityMode(Functions::COMPATIBILITY_GNUMERIC);
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertSame('5', $this->trimIfQuoted((string) $result), 'Gnumeric');
 
         Functions::setCompatibilityMode(Functions::COMPATIBILITY_OPENOFFICE);
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertSame(ExcelError::NAN(), $this->trimIfQuoted((string) $result), 'OpenOffice');
 
         Functions::setCompatibilityMode(Functions::COMPATIBILITY_EXCEL);
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertSame(ExcelError::NAN(), $this->trimIfQuoted((string) $result), 'Excel');
     }

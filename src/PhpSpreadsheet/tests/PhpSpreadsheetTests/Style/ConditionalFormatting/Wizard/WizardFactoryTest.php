@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Style\ConditionalFormatting\Wizard;
 
 use PhpOffice\PhpSpreadsheet\Exception;
@@ -10,10 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 class WizardFactoryTest extends TestCase
 {
-    /**
-     * @var Wizard
-     */
-    protected $wizardFactory;
+    protected Wizard $wizardFactory;
 
     protected function setUp(): void
     {
@@ -65,7 +64,7 @@ class WizardFactoryTest extends TestCase
 
         foreach ($conditionals as $index => $conditional) {
             $wizard = Wizard::fromConditional($conditional);
-            self::assertEquals($expectedWizads[$index], get_class($wizard));
+            self::assertEquals($expectedWizads[$index], $wizard::class);
         }
     }
 

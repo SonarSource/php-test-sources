@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Information\ExcelError;
@@ -39,7 +41,7 @@ class StructuredReferenceFormulaTest extends TestCase
         $result = $spreadsheet->getActiveSheet()->getCell($cellAddress)->getCalculatedValue();
         self::assertSame('Region', $result);
 
-        $spreadsheet->getCalculationEngine()->flushInstance(); // @phpstan-ignore-line
+        $spreadsheet->getCalculationEngine()?->flushInstance();
         $table->setShowHeaderRow(false);
 
         $result = $spreadsheet->getActiveSheet()->getCell($cellAddress)->getCalculatedValue();

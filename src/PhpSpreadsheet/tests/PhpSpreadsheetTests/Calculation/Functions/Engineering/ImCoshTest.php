@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,10 +17,7 @@ class ImCoshTest extends TestCase
 {
     const COMPLEX_PRECISION = 1E-12;
 
-    /**
-     * @var ComplexAssert
-     */
-    private $complexAssert;
+    private ComplexAssert $complexAssert;
 
     protected function setUp(): void
     {
@@ -28,13 +27,10 @@ class ImCoshTest extends TestCase
 
     /**
      * @dataProvider providerIMCOSH
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToIMCOSH($expectedResult, ...$args): void
+    public function testDirectCallToIMCOSH(string $expectedResult, string $arg): void
     {
-        /** @scrutinizer ignore-call */
-        $result = ComplexFunctions::IMCOSH(...$args);
+        $result = ComplexFunctions::IMCOSH($arg);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $result, self::COMPLEX_PRECISION),
             $this->complexAssert->getErrorMessage()
@@ -48,16 +44,15 @@ class ImCoshTest extends TestCase
 
     /**
      * @dataProvider providerIMCOSH
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMCOSHAsFormula($expectedResult, ...$args): void
+    public function testIMCOSHAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
         $calculation = Calculation::getInstance();
         $formula = "=IMCOSH({$arguments})";
 
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $this->trimIfQuoted((string) $result), self::COMPLEX_PRECISION),
@@ -67,10 +62,8 @@ class ImCoshTest extends TestCase
 
     /**
      * @dataProvider providerIMCOSH
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMCOSHInWorksheet($expectedResult, ...$args): void
+    public function testIMCOSHInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -98,7 +91,7 @@ class ImCoshTest extends TestCase
     /**
      * @dataProvider providerUnhappyIMCOSH
      */
-    public function testIMCOSHUnhappyPath(string $expectedException, ...$args): void
+    public function testIMCOSHUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

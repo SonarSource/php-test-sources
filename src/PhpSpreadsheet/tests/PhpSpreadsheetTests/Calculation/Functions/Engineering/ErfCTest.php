@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,22 +17,17 @@ class ErfCTest extends TestCase
 
     /**
      * @dataProvider providerERFC
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToERFC($expectedResult, ...$args): void
+    public function testDirectCallToERFC(mixed $expectedResult, mixed ...$args): void
     {
-        /** @scrutinizer ignore-call */
         $result = ErfC::ERFC(...$args);
         self::assertEqualsWithDelta($expectedResult, $result, self::ERF_PRECISION);
     }
 
     /**
      * @dataProvider providerERFC
-     *
-     * @param mixed $expectedResult
      */
-    public function testERFCAsFormula($expectedResult, ...$args): void
+    public function testERFCAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -43,10 +40,8 @@ class ErfCTest extends TestCase
 
     /**
      * @dataProvider providerERFC
-     *
-     * @param mixed $expectedResult
      */
-    public function testERFCInWorksheet($expectedResult, ...$args): void
+    public function testERFCInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -71,7 +66,7 @@ class ErfCTest extends TestCase
     /**
      * @dataProvider providerUnhappyERFC
      */
-    public function testERFCUnhappyPath(string $expectedException, ...$args): void
+    public function testERFCUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,10 +17,7 @@ class ImConjugateTest extends TestCase
 {
     const COMPLEX_PRECISION = 1E-12;
 
-    /**
-     * @var ComplexAssert
-     */
-    private $complexAssert;
+    private ComplexAssert $complexAssert;
 
     protected function setUp(): void
     {
@@ -28,13 +27,10 @@ class ImConjugateTest extends TestCase
 
     /**
      * @dataProvider providerIMCONJUGATE
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToIMCONJUGATE($expectedResult, ...$args): void
+    public function testDirectCallToIMCONJUGATE(string $expectedResult, string $arg): void
     {
-        /** @scrutinizer ignore-call */
-        $result = ComplexFunctions::IMCONJUGATE(...$args);
+        $result = ComplexFunctions::IMCONJUGATE($arg);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $result, self::COMPLEX_PRECISION),
             $this->complexAssert->getErrorMessage()
@@ -48,16 +44,15 @@ class ImConjugateTest extends TestCase
 
     /**
      * @dataProvider providerIMCONJUGATE
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMCONJUGATEAsFormula($expectedResult, ...$args): void
+    public function testIMCONJUGATEAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
         $calculation = Calculation::getInstance();
         $formula = "=IMCONJUGATE({$arguments})";
 
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $this->trimIfQuoted((string) $result), self::COMPLEX_PRECISION),
@@ -67,10 +62,8 @@ class ImConjugateTest extends TestCase
 
     /**
      * @dataProvider providerIMCONJUGATE
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMCONJUGATEInWorksheet($expectedResult, ...$args): void
+    public function testIMCONJUGATEInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -98,7 +91,7 @@ class ImConjugateTest extends TestCase
     /**
      * @dataProvider providerUnhappyIMCONJUGATE
      */
-    public function testIMCONJUGATEUnhappyPath(string $expectedException, ...$args): void
+    public function testIMCONJUGATEUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

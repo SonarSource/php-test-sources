@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -13,22 +15,17 @@ class GeStepTest extends TestCase
 {
     /**
      * @dataProvider providerGESTEP
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToGESTEP($expectedResult, ...$args): void
+    public function testDirectCallToGESTEP(int|string $expectedResult, bool|float|int|string $arg1, null|bool|float|int|string $arg2 = null): void
     {
-        /** @scrutinizer ignore-call */
-        $result = Compare::geStep(...$args);
+        $result = ($arg2 === null) ? Compare::geStep($arg1) : Compare::geStep($arg1, $arg2);
         self::assertSame($expectedResult, $result);
     }
 
     /**
      * @dataProvider providerGESTEP
-     *
-     * @param mixed $expectedResult
      */
-    public function testGESTEPAsFormula($expectedResult, ...$args): void
+    public function testGESTEPAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -41,10 +38,8 @@ class GeStepTest extends TestCase
 
     /**
      * @dataProvider providerGESTEP
-     *
-     * @param mixed $expectedResult
      */
-    public function testGESTEPInWorksheet($expectedResult, ...$args): void
+    public function testGESTEPInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -69,7 +64,7 @@ class GeStepTest extends TestCase
     /**
      * @dataProvider providerUnhappyGESTEP
      */
-    public function testGESTEPUnhappyPath(string $expectedException, ...$args): void
+    public function testGESTEPUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

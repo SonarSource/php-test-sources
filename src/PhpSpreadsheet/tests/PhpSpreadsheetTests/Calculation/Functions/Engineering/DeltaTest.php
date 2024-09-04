@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -13,22 +15,17 @@ class DeltaTest extends TestCase
 {
     /**
      * @dataProvider providerDELTA
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToDELTA($expectedResult, ...$args): void
+    public function testDirectCallToDELTA(mixed $expectedResult, bool|float|int|string $arg1, null|bool|float|int|string $arg2 = null): void
     {
-        /** @scrutinizer ignore-call */
-        $result = Compare::delta(...$args);
+        $result = ($arg2 === null) ? Compare::delta($arg1) : Compare::delta($arg1, $arg2);
         self::assertSame($expectedResult, $result);
     }
 
     /**
      * @dataProvider providerDELTA
-     *
-     * @param mixed $expectedResult
      */
-    public function testDELTAAsFormula($expectedResult, ...$args): void
+    public function testDELTAAsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -41,10 +38,8 @@ class DeltaTest extends TestCase
 
     /**
      * @dataProvider providerDELTA
-     *
-     * @param mixed $expectedResult
      */
-    public function testDELTAInWorksheet($expectedResult, ...$args): void
+    public function testDELTAInWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -69,7 +64,7 @@ class DeltaTest extends TestCase
     /**
      * @dataProvider providerUnhappyDELTA
      */
-    public function testDELTAUnhappyPath(string $expectedException, ...$args): void
+    public function testDELTAUnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

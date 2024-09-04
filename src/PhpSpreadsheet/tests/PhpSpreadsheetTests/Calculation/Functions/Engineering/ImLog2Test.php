@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PhpOffice\PhpSpreadsheetTests\Calculation\Functions\Engineering;
 
 use PhpOffice\PhpSpreadsheet\Calculation\Calculation;
@@ -15,10 +17,7 @@ class ImLog2Test extends TestCase
 {
     const COMPLEX_PRECISION = 1E-8;
 
-    /**
-     * @var ComplexAssert
-     */
-    private $complexAssert;
+    private ComplexAssert $complexAssert;
 
     protected function setUp(): void
     {
@@ -28,13 +27,10 @@ class ImLog2Test extends TestCase
 
     /**
      * @dataProvider providerIMLOG2
-     *
-     * @param mixed $expectedResult
      */
-    public function testDirectCallToIMLOG2($expectedResult, ...$args): void
+    public function testDirectCallToIMLOG2(string $expectedResult, string $arg): void
     {
-        /** @scrutinizer ignore-call */
-        $result = ComplexFunctions::IMLOG2(...$args);
+        $result = ComplexFunctions::IMLOG2($arg);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $result, self::COMPLEX_PRECISION),
             $this->complexAssert->getErrorMessage()
@@ -48,16 +44,15 @@ class ImLog2Test extends TestCase
 
     /**
      * @dataProvider providerIMLOG2
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMLOG2AsFormula($expectedResult, ...$args): void
+    public function testIMLOG2AsFormula(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
         $calculation = Calculation::getInstance();
         $formula = "=IMLOG2({$arguments})";
 
+        /** @var float|int|string */
         $result = $calculation->_calculateFormulaValue($formula);
         self::assertTrue(
             $this->complexAssert->assertComplexEquals($expectedResult, $this->trimIfQuoted((string) $result), self::COMPLEX_PRECISION),
@@ -67,10 +62,8 @@ class ImLog2Test extends TestCase
 
     /**
      * @dataProvider providerIMLOG2
-     *
-     * @param mixed $expectedResult
      */
-    public function testIMLOG2InWorksheet($expectedResult, ...$args): void
+    public function testIMLOG2InWorksheet(mixed $expectedResult, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 
@@ -98,7 +91,7 @@ class ImLog2Test extends TestCase
     /**
      * @dataProvider providerUnhappyIMLOG2
      */
-    public function testIMLOG2UnhappyPath(string $expectedException, ...$args): void
+    public function testIMLOG2UnhappyPath(string $expectedException, mixed ...$args): void
     {
         $arguments = new FormulaArguments(...$args);
 

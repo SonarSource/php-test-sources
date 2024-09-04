@@ -15,6 +15,9 @@ use PhpParser\NodeTraverser;
 use Psy\Sudo\SudoVisitor;
 use Psy\Test\ParserTestCase;
 
+/**
+ * @group isolation-fail
+ */
 class SudoVisitorTest extends ParserTestCase
 {
     /**
@@ -22,6 +25,7 @@ class SudoVisitorTest extends ParserTestCase
      */
     public function getReady()
     {
+        // @todo Pass visitor directly to once we drop support for PHP-Parser 4.x
         $this->traverser = new NodeTraverser();
         $this->traverser->addVisitor(new SudoVisitor());
     }
